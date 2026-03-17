@@ -1,115 +1,66 @@
 # NBA Player Performance Prediction
 
-This project applies machine learning techniques to predict NBA player performance using game-level statistics from the 2024–2025 NBA season.
+This project uses machine learning to predict NBA player performance and evaluate betting props using real game data.
 
-The goal is to explore how historical player performance can be used to forecast future outcomes while avoiding data leakage and maintaining a realistic prediction setting.
-
-The project analyzes player statistics, engineers features using rolling game data, and trains models to predict overall performance and scoring outcomes.
-
----
-
-## Project Objectives
-
-The notebook focuses on two prediction tasks.
-
-Regression  
-Predict a player's Game Score (GmSc), an advanced metric that summarizes overall player performance in a single value.
-
-Classification  
-Predict whether a player will score 20+ points or 25+ points in a game.
-
-Rolling statistics from previous games are used so the model only relies on information that would have been available before the game occurred.
+The focus is on building a practical, data-driven workflow that combines:
+- Feature engineering from player game logs
+- Regression modeling for stat prediction
+- A live web app for real-time prop evaluation
 
 ---
 
-## Dataset
+## Project Overview
 
-Dataset: NBA Player Stats 2024–2025  
-Source: Kaggle
+The model predicts **player points** using historical performance data and rolling statistics.  
+It is designed to simulate how a bettor might evaluate over/under lines using recent trends and player role.
 
-The dataset contains game-level box score statistics including:
-
-- points
-- rebounds
-- assists
-- minutes played
-- shooting statistics
-- team and player information
-
-Each row represents a player’s performance in a single game.
+The web application allows users to:
+- Search any NBA player
+- View today’s matchup (if available)
+- Input a betting line
+- Receive a prediction and probability-based recommendation
 
 ---
 
-## Project Workflow
+## Model Details
 
-The project follows a typical machine learning pipeline.
+### Features Used
 
-1. Load dataset
-2. Inspect and clean data
-3. Feature engineering using rolling statistics
-4. Exploratory data analysis
-5. Train regression and classification models
-6. Evaluate model performance
-7. Interpret results
+The current points model is built on a **focused, high-signal feature set**:
 
----
+- player_avg_pts → long-term scoring baseline  
+- last5_pts → recent scoring trend  
+- last5_fga → shot volume (primary driver of points)  
+- last5_fta → free throw scoring opportunities  
+- last5_minutes → playing time / opportunity  
+- last5_gmsc → overall performance metric  
 
-## Repository Structure
+### Model Type
 
-nba-player-performance/
-│
-├── data/
-│   └── database_24_25.csv
-│
-├── notebook/
-│   └── nba_analysis.ipynb
-│
-├── README.md
-└── requirements.txt
+- Gradient Boosting / Random Forest (scikit-learn)
+- Trained on NBA game logs via `nba_api`
 
----
+### Performance
 
-## Tools and Libraries
+- MAE: ~4.8  
+- RMSE: ~6.1  
+- R²: ~0.25  
 
-Python  
-Pandas  
-NumPy  
-Scikit-learn  
-Matplotlib
+This is considered a **solid baseline model** for NBA points prediction using public data.
 
 ---
 
-## Running the Project
+## Web App (Streamlit)
 
-Clone the repository
+The project includes a fully functional web app built with Streamlit.
 
-git clone https://github.com/yourusername/nba-player-performance.git
+### Features
 
-Install dependencies
+- Player search via NBA API  
+- Live game lookup (matchup, date, time)  
+- Model-based point prediction  
+- Betting line input  
+- Edge calculation  
+- Probability-based recommendations  
 
-pip install -r requirements.txt
-
-Run the notebook
-
-jupyter notebook
-
-Open the notebook and run the cells sequentially.
-
----
-
-## Future Improvements
-
-Possible extensions for this project include:
-
-- incorporating team defensive metrics
-- predicting additional performance statistics
-- using advanced models such as gradient boosting
-- building a player performance dashboard
-
----
-
-## Author
-
-Ray Hanly  
-Computer Information Technology  
-Machine Learning / Data Analysis Project
+### Example Output
