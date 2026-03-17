@@ -6,7 +6,7 @@ from datetime import datetime
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
 
-st.write("NEW VERSION LOADED")
+st.write("NEW VERSION LOADED 1.1")
 
 st.title("NBA Points Prop Predictor")
 
