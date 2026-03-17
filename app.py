@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import joblib
 from datetime import datetime
+import json
+from scipy.stats import norm
 
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
@@ -11,6 +13,10 @@ st.write("NEW VERSION LOADED 1.1")
 st.title("NBA Points Prop Predictor")
 
 model = joblib.load("models/points_regression.pkl")
+with open("models/points_model_stats.json", "r") as f:
+    model_stats = json.load(f)
+
+points_std = model_stats["std_dev"]
 
 player_name = st.text_input("Enter player name")
 line = st.number_input("Enter points line", min_value=0.0, value=20.5, step=0.5)
@@ -115,15 +121,20 @@ if player_name:
 
             predicted_points = model.predict(X)[0]
             edge = predicted_points - line
-
+            
+            prob_over = 1 - norm.cdf(line, loc=predicted_points, scale=points_std)
+            prob_under = 1 - prob_over
+            
             st.subheader("Prediction")
             st.write("Predicted points:", round(predicted_points, 2))
             st.write("Line:", line)
             st.write("Edge:", round(edge, 2))
-
-            if edge >= 1.0:
+            st.write("Probability over:", f"{prob_over:.1%}")
+            st.write("Probability under:", f"{prob_under:.1%}")
+            
+            if prob_over >= 0.60:
                 st.success("Lean Over")
-            elif edge <= -1.0:
+            elif prob_under >= 0.60:
                 st.warning("Lean Under")
             else:
                 st.info("No Edge")
