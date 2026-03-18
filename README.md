@@ -2,6 +2,18 @@
 
 # NBA Player Performance Prediction
 
+<p align="center">
+  <img src="images/web_app_pic.JPG" width="900"/>
+</p>
+
+<p align="center">
+  <a href="https://nbaplayerperformanceprediction-7ajdpm4cmafadrmuczbvyf.streamlit.app/" target="_blank">
+    <img src="https://static.streamlit.io/badges/streamlit_badge_black_white.svg">
+  </a>
+</p>
+
+# NBA Player Performance Prediction
+
 This project uses machine learning to predict NBA player performance and evaluate betting props using real game data.
 
 The focus is on building a practical, data-driven workflow that combines:
