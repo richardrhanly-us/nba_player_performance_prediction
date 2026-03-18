@@ -409,7 +409,8 @@ def extract_player_prop(event_odds_json, selected_player):
             under_outcomes = []
 
             for outcome in market.get("outcomes", []):
-                if normalize_name(outcome.get("description", "")) != target_name:
+                outcome_name = normalize_name(outcome.get("description", ""))
+                if outcome_name != target_name:
                     continue
 
                 if outcome.get("name") == "Over":
