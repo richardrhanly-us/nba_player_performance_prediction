@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import requests
 import joblib
 import pandas as pd
@@ -142,7 +143,7 @@ st.markdown("""
     }
 
     .selected-player {
-        margin-top: 10px;
+        margin-top: 12px;
         padding: 10px 14px;
         border-radius: 12px;
         background: rgba(59, 130, 246, 0.14);
@@ -182,17 +183,33 @@ st.markdown("""
     div.stButton > button {
         width: 100%;
         text-align: left;
-        background: #111827;
-        color: #f8fafc;
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 12px;
-        padding: 0.6rem 0.9rem;
-        margin-bottom: 0.35rem;
+        background: transparent;
+        color: #e5e7eb;
+        border: none;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        border-radius: 0;
+        padding: 0.6rem 0.4rem;
+        box-shadow: none;
     }
 
     div.stButton > button:hover {
-        border: 1px solid rgba(96, 165, 250, 0.35);
+        background: rgba(255,255,255,0.04);
         color: #ffffff;
+        border: none;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    div.stButton > button:focus {
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    .suggestion-wrap {
+        margin-top: 6px;
+        background: rgba(17, 24, 39, 0.95);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 14px;
+        overflow: hidden;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -247,6 +264,16 @@ NBA_TEAMS = {
 
 
 # -----------------------------
+# Session state
+# -----------------------------
+if "selected_player" not in st.session_state:
+    st.session_state.selected_player = None
+
+if "excluded_players" not in st.session_state:
+    st.session_state.excluded_players = set()
+
+
+# -----------------------------
 # Helpers / cache
 # -----------------------------
 @st.cache_resource
@@ -287,16 +314,6 @@ def normalize_name(name: str) -> str:
     )
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
-def player_has_current_season_gamelog(player_id: int, season: str = CURRENT_SEASON) -> bool:
-    try:
-        gamelog = playergamelog.PlayerGameLog(player_id=player_id, season=season)
-        df = gamelog.get_data_frames()[0]
-        return not df.empty
-    except Exception:
-        return False
-
-
 def rank_player_match(player_name: str, query: str):
     norm_name = normalize_name(player_name)
     tokens = norm_name.split()
@@ -317,7 +334,7 @@ def rank_player_match(player_name: str, query: str):
     return (99, 999, 999, norm_name)
 
 
-def get_player_suggestions(search_text, player_names, player_name_map, max_results=8):
+def get_player_suggestions(search_text, player_names, max_results=6):
     if not search_text or len(search_text.strip()) < 2:
         return []
 
@@ -325,11 +342,12 @@ def get_player_suggestions(search_text, player_names, player_name_map, max_resul
 
     candidates = []
     for name in player_names:
+        if name in st.session_state.excluded_players:
+            continue
+
         score = rank_player_match(name, query)
         if score[0] < 99:
-            player_id = player_name_map[name]
-            if player_has_current_season_gamelog(player_id):
-                candidates.append((score, name))
+            candidates.append((score, name))
 
     candidates.sort(key=lambda x: x[0])
     return [name for _, name in candidates[:max_results]]
@@ -353,8 +371,38 @@ def american_odds_text(price):
         return str(price)
 
 
+def run_with_retry(func, retries=3, delay=1.2):
+    last_error = None
+    for attempt in range(retries):
+        try:
+            return func()
+        except Exception as e:
+            last_error = e
+            if attempt < retries - 1:
+                time.sleep(delay)
+    raise last_error
+
+
+def get_player_info_df(player_id):
+    return run_with_retry(
+        lambda: commonplayerinfo.CommonPlayerInfo(player_id=player_id).get_data_frames()[0]
+    )
+
+
+def get_player_gamelog_df(player_id, season):
+    return run_with_retry(
+        lambda: playergamelog.PlayerGameLog(player_id=player_id, season=season).get_data_frames()[0]
+    )
+
+
+def get_scoreboard_for_date(target_date_str):
+    return run_with_retry(
+        lambda: scoreboardv2.ScoreboardV2(game_date=target_date_str)
+    )
+
+
 def get_team_game_info(team_id, team_abbr, target_date_str):
-    board = scoreboardv2.ScoreboardV2(game_date=target_date_str)
+    board = get_scoreboard_for_date(target_date_str)
     game_header = board.game_header.get_data_frame()
     line_score = board.line_score.get_data_frame()
 
@@ -482,9 +530,6 @@ model_stats = load_model_stats()
 points_std = model_stats["std_dev"]
 _, player_name_map, player_names = load_active_players()
 
-if "selected_player" not in st.session_state:
-    st.session_state.selected_player = None
-
 
 # -----------------------------
 # Header
@@ -497,7 +542,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -----------------------------
-# Search controls
+# Search UI
 # -----------------------------
 st.caption("Search for a player by name")
 
@@ -508,9 +553,6 @@ player_search = st.text_input(
     key="player_search"
 )
 
-suggestions = get_player_suggestions(player_search, player_names, player_name_map)
-
-# Clear selected player if search box no longer matches it closely
 if player_search.strip():
     if (
         st.session_state.selected_player
@@ -519,12 +561,16 @@ if player_search.strip():
     ):
         st.session_state.selected_player = None
 
+suggestions = get_player_suggestions(player_search, player_names)
+
 if len(player_search.strip()) >= 2 and st.session_state.selected_player is None:
     if suggestions:
+        st.markdown('<div class="suggestion-wrap">', unsafe_allow_html=True)
         for idx, suggestion in enumerate(suggestions):
             if st.button(suggestion, key=f"suggestion_{idx}"):
                 st.session_state.selected_player = suggestion
                 st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.markdown(
             '<div class="small-note">No active players matched that search.</div>',
@@ -556,7 +602,7 @@ if selected_player:
     try:
         player_id = player_name_map[selected_player]
 
-        player_info = commonplayerinfo.CommonPlayerInfo(player_id=player_id).get_data_frames()[0]
+        player_info = get_player_info_df(player_id)
         team_id = int(player_info.loc[0, "TEAM_ID"])
         team_abbr = player_info.loc[0, "TEAM_ABBREVIATION"]
 
@@ -640,11 +686,12 @@ if selected_player:
         elif sportsbook_line is None:
             line_source = "Manual fallback"
 
-        gamelog = playergamelog.PlayerGameLog(player_id=player_id, season=CURRENT_SEASON)
-        df = gamelog.get_data_frames()[0]
+        df = get_player_gamelog_df(player_id, CURRENT_SEASON)
 
         if df.empty:
-            st.warning("No game log found for this player yet.")
+            st.session_state.excluded_players.add(selected_player)
+            st.session_state.selected_player = None
+            st.warning("That player does not have a current-season game log yet, so they were removed from suggestions.")
             st.stop()
 
         df["GAME_DATE"] = pd.to_datetime(df["GAME_DATE"])
@@ -827,7 +874,7 @@ else:
     <div class="section-card">
         <div class="section-title">Get Started</div>
         <div class="small-note">
-            Start typing at least 2 letters to search active NBA players with current-season game logs.
+            Start typing at least 2 letters to search players.
         </div>
     </div>
     """, unsafe_allow_html=True)
