@@ -1,4 +1,4 @@
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://nbaplayerperformanceprediction-7ajdpm4cmafadrrmuczbyvf.streamlit.app)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://nbaplayerperformanceprediction-7ajdpm4cmafadrmuczbvyf.streamlit.app/)
 
 # NBA Player Performance Prediction
 
@@ -60,7 +60,9 @@ The project includes a fully functional web app built with Streamlit.
 
 You can use the NBA Points Prop Predictor here:
 
-👉 https://nbaplayerperformanceprediction-7ajdpm4cmafadrmuczbvyf.streamlit.app/
+👉 <a href=https://nbaplayerperformanceprediction-7ajdpm4cmafadrmuczbvyf.streamlit.app/target="_blank">
+Launch NBA Points Predictor
+</a>
 
 This interactive app allows users to:
 - Search for any NBA player
