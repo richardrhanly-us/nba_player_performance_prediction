@@ -1,3 +1,5 @@
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://nbaplayerperformanceprediction-7ajdpm4cmafadrrmuczbyvf.streamlit.app)
+
 # NBA Player Performance Prediction
 
 This project uses machine learning to predict NBA player performance and evaluate betting props using real game data.
@@ -54,13 +56,28 @@ This is considered a **solid baseline model** for NBA points prediction using pu
 
 The project includes a fully functional web app built with Streamlit.
 
-### Features
+## Live Web App
 
-- Player search via NBA API  
-- Live game lookup (matchup, date, time)  
-- Model-based point prediction  
-- Betting line input  
-- Edge calculation  
-- Probability-based recommendations  
+You can use the NBA Points Prop Predictor here:
+
+👉 https://nbaplayerperformanceprediction-7ajdpm4cmafadrrmuczbyvf.streamlit.app
+
+This interactive app allows users to:
+- Search for any NBA player
+- View today's matchup (if available)
+- Input a betting line
+- Get a model-based prediction
+- See probability of hitting over/under
+- Receive a recommendation (Lean Over / Under / No Edge)
+- ### Live Demo
+
+The application is deployed using Streamlit Community Cloud and is publicly accessible.
+
+The app connects to the NBA API in real time to:
+- Retrieve player game logs
+- Identify today's games
+- Generate live predictions
+
+Predictions are converted into probabilities using the model’s error distribution, allowing for more realistic betting-style analysis.
 
 ### Example Output
