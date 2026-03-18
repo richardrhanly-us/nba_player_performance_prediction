@@ -16,13 +16,7 @@ from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv
 
 APP_VERSION = "v1.3"
 
-hr {
-    display: none !important;
-}
 
-div[data-testid="stDivider"] {
-    display: none !important;
-} 
 st.set_page_config(
     page_title="NBA Points Prop Predictor",
     page_icon="🏀",
@@ -245,6 +239,14 @@ st.markdown("""
         border-radius: 12px;
         overflow: hidden;
     }
+
+    hr {
+    display: none !important;
+    }
+    
+    div[data-testid="stDivider"] {
+        display: none !important;
+    } 
 </style>
 """, unsafe_allow_html=True)
 
