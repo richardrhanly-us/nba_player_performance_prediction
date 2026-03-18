@@ -14,7 +14,7 @@ from datetime import datetime
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
 
-APP_VERSION = "v1.3"
+APP_VERSION = "v1.4"
 
 
 st.set_page_config(
@@ -22,6 +22,7 @@ st.set_page_config(
     page_icon="🏀",
     layout="centered"
 )
+
 
 st.markdown("""
 <style>
@@ -33,7 +34,11 @@ st.markdown("""
     .block-container {
         padding-top: 1.1rem;
         padding-bottom: 3rem;
-        max-width: 960px;
+        max-width: 980px;
+    }
+
+    hr, div[data-testid="stDivider"] {
+        display: none !important;
     }
 
     .hero {
@@ -109,78 +114,51 @@ st.markdown("""
         line-height: 1.2;
     }
 
-    .model-card {
-        background: linear-gradient(135deg, #020617 0%, #020617 60%, #0f172a 100%);
-        border: 2px solid #38bdf8;
-        border-radius: 18px;
-        padding: 22px;
-        margin-top: 26px;
-    
-        /* glow effect */
-        box-shadow:
-            0 0 0px rgba(56,189,248,0.4),
-            0 0 20px rgba(56,189,248,0.25),
-            0 0 40px rgba(56,189,248,0.15);
-    }
-    
     .model-title {
-        color: #38bdf8;
         font-size: 0.9rem;
         font-weight: 900;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         margin-bottom: 16px;
     }
-    
+
     .model-main {
         display: grid;
         grid-template-columns: 1.2fr 0.9fr 0.9fr 1fr;
         gap: 14px;
     }
-    
+
     .model-stat {
-        background: #020617;
-        border: 1px solid rgba(56,189,248,0.25);
         border-radius: 14px;
         padding: 14px 16px;
     }
-    
+
     .model-stat-label {
-        color: #7dd3fc;
         font-size: 0.75rem;
         margin-bottom: 6px;
         text-transform: uppercase;
         letter-spacing: 0.06em;
     }
-    
+
     .model-stat-value {
         color: #ffffff;
         font-size: 1.15rem;
         font-weight: 900;
     }
 
-    .pick-over {
-    background: rgba(16, 185, 129, 0.18);
-    color: #34d399;
-    border: 1px solid #34d399;
-    }
-    
-    .pick-under {
-        background: rgba(245, 158, 11, 0.18);
-        color: #fbbf24;
-        border: 1px solid #fbbf24;
-    }
-    
-    .pick-none {
-        background: rgba(59, 130, 246, 0.18);
-        color: #60a5fa;
-        border: 1px solid #60a5fa;
+    .pick-banner {
+        margin-top: 16px;
+        border-radius: 14px;
+        padding: 14px 16px;
+        font-size: 1rem;
+        font-weight: 800;
+        text-align: center;
     }
 
     .small-note {
         color: #94a3b8;
         font-size: 0.84rem;
-        margin-top: 8px;
+        margin-top: 10px;
     }
 
     .recent-grid {
@@ -239,14 +217,6 @@ st.markdown("""
         border-radius: 12px;
         overflow: hidden;
     }
-
-    hr {
-    display: none !important;
-    }
-    
-    div[data-testid="stDivider"] {
-        display: none !important;
-    } 
 </style>
 """, unsafe_allow_html=True)
 
@@ -295,6 +265,39 @@ NBA_TEAMS = {
     "WAS": "Washington Wizards"
 }
 
+TEAM_THEMES = {
+    "ATL": {"primary": "#E03A3E", "secondary": "#C1D32F"},
+    "BOS": {"primary": "#007A33", "secondary": "#BA9653"},
+    "BKN": {"primary": "#000000", "secondary": "#FFFFFF"},
+    "CHA": {"primary": "#1D1160", "secondary": "#00788C"},
+    "CHI": {"primary": "#CE1141", "secondary": "#000000"},
+    "CLE": {"primary": "#860038", "secondary": "#FDBB30"},
+    "DAL": {"primary": "#00538C", "secondary": "#B8C4CA"},
+    "DEN": {"primary": "#0E2240", "secondary": "#FEC524"},
+    "DET": {"primary": "#C8102E", "secondary": "#1D42BA"},
+    "GSW": {"primary": "#1D428A", "secondary": "#FFC72C"},
+    "HOU": {"primary": "#CE1141", "secondary": "#C4CED4"},
+    "IND": {"primary": "#002D62", "secondary": "#FDBB30"},
+    "LAC": {"primary": "#C8102E", "secondary": "#1D428A"},
+    "LAL": {"primary": "#552583", "secondary": "#FDB927"},
+    "MEM": {"primary": "#5D76A9", "secondary": "#12173F"},
+    "MIA": {"primary": "#98002E", "secondary": "#F9A01B"},
+    "MIL": {"primary": "#00471B", "secondary": "#EEE1C6"},
+    "MIN": {"primary": "#0C2340", "secondary": "#236192"},
+    "NOP": {"primary": "#0C2340", "secondary": "#C8102E"},
+    "NYK": {"primary": "#006BB6", "secondary": "#F58426"},
+    "OKC": {"primary": "#007AC1", "secondary": "#EF3B24"},
+    "ORL": {"primary": "#0077C0", "secondary": "#C4CED4"},
+    "PHI": {"primary": "#006BB6", "secondary": "#ED174C"},
+    "PHX": {"primary": "#1D1160", "secondary": "#E56020"},
+    "POR": {"primary": "#E03A3E", "secondary": "#000000"},
+    "SAC": {"primary": "#5A2D81", "secondary": "#63727A"},
+    "SAS": {"primary": "#000000", "secondary": "#C4CED4"},
+    "TOR": {"primary": "#CE1141", "secondary": "#000000"},
+    "UTA": {"primary": "#002B5C", "secondary": "#F9A01B"},
+    "WAS": {"primary": "#002B5C", "secondary": "#E31837"}
+}
+
 
 @st.cache_resource
 def load_model():
@@ -334,12 +337,26 @@ def normalize_name(name: str) -> str:
     )
 
 
+def hex_to_rgba(hex_color: str, alpha: float) -> str:
+    hex_color = hex_color.lstrip("#")
+    if len(hex_color) != 6:
+        return f"rgba(56,189,248,{alpha})"
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+    return f"rgba({r}, {g}, {b}, {alpha})"
+
+
+def get_team_theme(team_abbr: str):
+    return TEAM_THEMES.get(team_abbr, {"primary": "#38bdf8", "secondary": "#60a5fa"})
+
+
 def get_pick_label(prob_over, prob_under):
     if prob_over >= 0.60:
-        return "Lean Over", "pick-over"
+        return "Lean Over", "over"
     if prob_under >= 0.60:
-        return "Lean Under", "pick-under"
-    return "No Edge", "pick-none"
+        return "Lean Under", "under"
+    return "No Edge", "neutral"
 
 
 def american_odds_text(price):
@@ -544,6 +561,23 @@ if selected_player:
         player_info = get_player_info_df(player_id)
         team_id = int(player_info.loc[0, "TEAM_ID"])
         team_abbr = player_info.loc[0, "TEAM_ABBREVIATION"]
+        team_theme = get_team_theme(team_abbr)
+
+        primary = team_theme["primary"]
+        secondary = team_theme["secondary"]
+
+        model_bg = (
+            f"linear-gradient(135deg, "
+            f"{hex_to_rgba(primary, 0.22)} 0%, "
+            f"{hex_to_rgba(secondary, 0.16)} 45%, "
+            f"rgba(2, 6, 23, 0.98) 100%)"
+        )
+        model_border = primary
+        model_glow = hex_to_rgba(primary, 0.28)
+        model_title_color = secondary
+        model_stat_bg = hex_to_rgba(primary, 0.10)
+        model_stat_border = hex_to_rgba(secondary, 0.32)
+        model_label_color = secondary
 
         eastern = pytz.timezone("US/Eastern")
         now_et = datetime.now(eastern)
@@ -684,7 +718,20 @@ if selected_player:
 
         prob_over = 1 - norm.cdf(line, loc=predicted_points, scale=points_std)
         prob_under = 1 - prob_over
-        pick_text, pick_class = get_pick_label(prob_over, prob_under)
+        pick_text, pick_kind = get_pick_label(prob_over, prob_under)
+
+        if pick_kind == "over":
+            pick_bg = hex_to_rgba(secondary, 0.16)
+            pick_border = secondary
+            pick_text_color = secondary
+        elif pick_kind == "under":
+            pick_bg = hex_to_rgba(primary, 0.18)
+            pick_border = secondary
+            pick_text_color = secondary
+        else:
+            pick_bg = hex_to_rgba(primary, 0.16)
+            pick_border = primary
+            pick_text_color = "#e5e7eb"
 
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">Game Info</div>', unsafe_allow_html=True)
@@ -744,39 +791,54 @@ if selected_player:
 
         st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown('<div class="model-card">', unsafe_allow_html=True)
-        st.markdown('<div class="model-title">Model Output</div>', unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div class="model-card" style="
+                background: {model_bg};
+                border: 3px solid {model_border};
+                box-shadow:
+                    0 0 0 1px {hex_to_rgba(secondary, 0.16)},
+                    0 0 28px {model_glow},
+                    0 0 50px {hex_to_rgba(primary, 0.18)};
+            ">
+                <div class="model-title" style="color: {model_title_color};">
+                    Model Output • {team_abbr} Theme
+                </div>
 
-        st.markdown(f"""
-        <div class="model-main">
-            <div class="model-stat">
-                <div class="model-stat-label">Predicted Points</div>
-                <div class="model-stat-value">{predicted_points:.2f}</div>
-            </div>
-            <div class="model-stat">
-                <div class="model-stat-label">Sportsbook Line</div>
-                <div class="model-stat-value">{line:.1f}</div>
-            </div>
-            <div class="model-stat">
-                <div class="model-stat-label">Model Edge</div>
-                <div class="model-stat-value">{edge:+.2f}</div>
-            </div>
-            <div class="model-stat">
-                <div class="model-stat-label">Probability Split</div>
-                <div class="model-stat-value">O {prob_over:.1%} / U {prob_under:.1%}</div>
-            </div>
-        </div>
+                <div class="model-main">
+                    <div class="model-stat" style="background: {model_stat_bg}; border: 1px solid {model_stat_border};">
+                        <div class="model-stat-label" style="color: {model_label_color};">Predicted Points</div>
+                        <div class="model-stat-value">{predicted_points:.2f}</div>
+                    </div>
+                    <div class="model-stat" style="background: {model_stat_bg}; border: 1px solid {model_stat_border};">
+                        <div class="model-stat-label" style="color: {model_label_color};">Sportsbook Line</div>
+                        <div class="model-stat-value">{line:.1f}</div>
+                    </div>
+                    <div class="model-stat" style="background: {model_stat_bg}; border: 1px solid {model_stat_border};">
+                        <div class="model-stat-label" style="color: {model_label_color};">Model Edge</div>
+                        <div class="model-stat-value">{edge:+.2f}</div>
+                    </div>
+                    <div class="model-stat" style="background: {model_stat_bg}; border: 1px solid {model_stat_border};">
+                        <div class="model-stat-label" style="color: {model_label_color};">Probability Split</div>
+                        <div class="model-stat-value">O {prob_over:.1%} / U {prob_under:.1%}</div>
+                    </div>
+                </div>
 
-        <div class="pick-banner {pick_class}">
-            {pick_text}
-        </div>
+                <div class="pick-banner" style="
+                    background: {pick_bg};
+                    color: {pick_text_color};
+                    border: 2px solid {pick_border};
+                ">
+                    {pick_text}
+                </div>
 
-        <div class="small-note">
-            Trained regression model output compared against the current sportsbook line.
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown('</div>', unsafe_allow_html=True)
+                <div class="small-note">
+                    Trained regression model output compared against the current sportsbook line.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
         recent_games = df.sort_values("GAME_DATE", ascending=False).head(5).copy()
         recent_games["GAME_DATE"] = recent_games["GAME_DATE"].dt.strftime("%Y-%m-%d")
