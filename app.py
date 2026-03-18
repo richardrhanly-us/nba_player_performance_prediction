@@ -1,12 +1,14 @@
 import os
-import requests
-import streamlit as st
-import pandas as pd
-import joblib
 import json
+import requests
+import joblib
+import pandas as pd
+import streamlit as st
+import pytz
+import unicodedata
+
 from scipy.stats import norm
 from datetime import datetime
-import pytz
 
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
@@ -139,12 +141,6 @@ st.markdown("""
         margin-top: 10px;
     }
 
-    .api-note {
-        color: #cbd5e1;
-        font-size: 0.82rem;
-        margin-top: 6px;
-    }
-
     .stSelectbox label, .stNumberInput label, .stCheckbox label {
         color: #e5e7eb !important;
         font-weight: 600;
@@ -207,9 +203,14 @@ def get_pick_label(prob_over, prob_under):
 
 
 def normalize_name(name: str) -> str:
+    if not name:
+        return ""
+
+    name = unicodedata.normalize("NFKD", str(name))
+    name = "".join(char for char in name if not unicodedata.combining(char))
+
     return (
-        str(name)
-        .lower()
+        name.lower()
         .replace(".", "")
         .replace("’", "'")
         .replace("-", " ")
@@ -280,6 +281,40 @@ BOOKMAKER_MAP = {
 }
 
 
+NBA_TEAMS = {
+    "ATL": "Atlanta Hawks",
+    "BOS": "Boston Celtics",
+    "BKN": "Brooklyn Nets",
+    "CHA": "Charlotte Hornets",
+    "CHI": "Chicago Bulls",
+    "CLE": "Cleveland Cavaliers",
+    "DAL": "Dallas Mavericks",
+    "DEN": "Denver Nuggets",
+    "DET": "Detroit Pistons",
+    "GSW": "Golden State Warriors",
+    "HOU": "Houston Rockets",
+    "IND": "Indiana Pacers",
+    "LAC": "Los Angeles Clippers",
+    "LAL": "Los Angeles Lakers",
+    "MEM": "Memphis Grizzlies",
+    "MIA": "Miami Heat",
+    "MIL": "Milwaukee Bucks",
+    "MIN": "Minnesota Timberwolves",
+    "NOP": "New Orleans Pelicans",
+    "NYK": "New York Knicks",
+    "OKC": "Oklahoma City Thunder",
+    "ORL": "Orlando Magic",
+    "PHI": "Philadelphia 76ers",
+    "PHX": "Phoenix Suns",
+    "POR": "Portland Trail Blazers",
+    "SAC": "Sacramento Kings",
+    "SAS": "San Antonio Spurs",
+    "TOR": "Toronto Raptors",
+    "UTA": "Utah Jazz",
+    "WAS": "Washington Wizards"
+}
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_upcoming_nba_events(api_key):
     url = "https://api.the-odds-api.com/v4/sports/basketball_nba/events"
@@ -292,51 +327,14 @@ def fetch_upcoming_nba_events(api_key):
     return resp.json()
 
 
-def find_matching_event_id(events, team_abbr, matchup_text):
-    # matchup_text examples: DAL vs ATL, DAL @ ATL
+def find_matching_event_id(events, matchup_text):
     parts = matchup_text.replace("vs", "@").split("@")
     teams = [p.strip() for p in parts if p.strip()]
     if len(teams) != 2:
         return None
 
-    target_team_1 = teams[0]
-    target_team_2 = teams[1]
-
-    nba_teams = {
-        "ATL": "Atlanta Hawks",
-        "BOS": "Boston Celtics",
-        "BKN": "Brooklyn Nets",
-        "CHA": "Charlotte Hornets",
-        "CHI": "Chicago Bulls",
-        "CLE": "Cleveland Cavaliers",
-        "DAL": "Dallas Mavericks",
-        "DEN": "Denver Nuggets",
-        "DET": "Detroit Pistons",
-        "GSW": "Golden State Warriors",
-        "HOU": "Houston Rockets",
-        "IND": "Indiana Pacers",
-        "LAC": "Los Angeles Clippers",
-        "LAL": "Los Angeles Lakers",
-        "MEM": "Memphis Grizzlies",
-        "MIA": "Miami Heat",
-        "MIL": "Milwaukee Bucks",
-        "MIN": "Minnesota Timberwolves",
-        "NOP": "New Orleans Pelicans",
-        "NYK": "New York Knicks",
-        "OKC": "Oklahoma City Thunder",
-        "ORL": "Orlando Magic",
-        "PHI": "Philadelphia 76ers",
-        "PHX": "Phoenix Suns",
-        "POR": "Portland Trail Blazers",
-        "SAC": "Sacramento Kings",
-        "SAS": "San Antonio Spurs",
-        "TOR": "Toronto Raptors",
-        "UTA": "Utah Jazz",
-        "WAS": "Washington Wizards"
-    }
-
-    full_1 = nba_teams.get(target_team_1)
-    full_2 = nba_teams.get(target_team_2)
+    full_1 = NBA_TEAMS.get(teams[0])
+    full_2 = NBA_TEAMS.get(teams[1])
 
     for event in events:
         home_team = event.get("home_team")
@@ -371,18 +369,17 @@ def extract_player_prop(event_odds_json, selected_player):
     bookmakers = event_odds_json.get("bookmakers", [])
     for bookmaker in bookmakers:
         book_title = bookmaker.get("title", "Unknown")
-        book_last_update = bookmaker.get("last_update", "")
 
         for market in bookmaker.get("markets", []):
             if market.get("key") != "player_points":
                 continue
 
-            outcomes = market.get("outcomes", [])
+            book_last_update = market.get("last_update", "")
 
             over_outcomes = []
             under_outcomes = []
 
-            for outcome in outcomes:
+            for outcome in market.get("outcomes", []):
                 outcome_name = normalize_name(outcome.get("description", ""))
                 if outcome_name != target_name:
                     continue
@@ -505,7 +502,6 @@ if selected_player:
                 game_date = "N/A"
                 game_time = "N/A"
 
-        
         # -----------------------------
         # Pull sportsbook line
         # -----------------------------
@@ -519,7 +515,7 @@ if selected_player:
         if odds_api_key and matchup != "N/A":
             try:
                 events = fetch_upcoming_nba_events(odds_api_key)
-                event_id = find_matching_event_id(events, team_abbr, matchup)
+                event_id = find_matching_event_id(events, matchup)
 
                 if event_id:
                     event_odds = fetch_player_points_market(
@@ -528,23 +524,7 @@ if selected_player:
                         BOOKMAKER_MAP[selected_book]
                     )
 
-                    with st.expander("Debug: API response"):
-                        st.json(event_odds)
-
-                    with st.expander("Debug: matched market outcomes"):
-                        st.write("Selected player:", selected_player)
-
-                        for bookmaker in event_odds.get("bookmakers", []):
-                            st.write("Bookmaker:", bookmaker.get("title"))
-
-                            for market in bookmaker.get("markets", []):
-                                st.write("Market key:", market.get("key"))
-
-                                for outcome in market.get("outcomes", []):
-                                    st.write(outcome)
-
                     prop = extract_player_prop(event_odds, selected_player)
-                    st.write("DEBUG PROP:", prop)
 
                     if prop:
                         sportsbook_line = prop["line"]
@@ -554,8 +534,7 @@ if selected_player:
                         book_updated = prop["last_update"]
                         line_source = "Sportsbook API"
 
-            except Exception as e:
-                st.write("DEBUG API ERROR:", e)
+            except Exception:
                 sportsbook_line = None
 
         default_line = sportsbook_line if sportsbook_line is not None else 20.5
