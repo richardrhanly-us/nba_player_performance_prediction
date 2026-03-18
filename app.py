@@ -15,18 +15,12 @@ from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
 
 
-# -----------------------------
-# Page config
-# -----------------------------
 st.set_page_config(
     page_title="NBA Points Prop Predictor",
     page_icon="🏀",
     layout="centered"
 )
 
-# -----------------------------
-# Custom CSS
-# -----------------------------
 st.markdown("""
 <style>
     .stApp {
@@ -35,14 +29,9 @@ st.markdown("""
     }
 
     .block-container {
-        padding-top: 1.2rem;
+        padding-top: 1.1rem;
         padding-bottom: 3rem;
-        max-width: 900px;
-    }
-
-    h1, h2, h3 {
-        color: #f8fafc;
-        letter-spacing: 0.2px;
+        max-width: 960px;
     }
 
     .hero {
@@ -83,39 +72,41 @@ st.markdown("""
         color: #f8fafc;
     }
 
-    .compact-grid {
+    .summary-strip {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(4, 1fr);
         gap: 10px;
     }
 
-    .compact-box {
-        background: #111827;
+    .summary-item {
+        background: #0f172a;
         border: 1px solid rgba(255,255,255,0.05);
         border-radius: 12px;
-        padding: 12px 14px;
+        padding: 10px 12px;
     }
 
-    .compact-label {
+    .summary-label {
         color: #94a3b8;
-        font-size: 0.76rem;
+        font-size: 0.72rem;
         margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
     }
 
-    .compact-value {
+    .summary-value {
         color: #f8fafc;
-        font-size: 1rem;
+        font-size: 0.98rem;
         font-weight: 700;
-        line-height: 1.25;
+        line-height: 1.2;
     }
 
     .model-card {
-        background: linear-gradient(135deg, rgba(30, 41, 59, 0.98) 0%, rgba(17, 24, 39, 0.98) 100%);
-        border: 1px solid rgba(56, 189, 248, 0.28);
-        border-radius: 16px;
-        padding: 16px;
-        margin-top: 16px;
-        box-shadow: 0 8px 22px rgba(0,0,0,0.22);
+        background: linear-gradient(135deg, rgba(14, 116, 144, 0.22) 0%, rgba(17, 24, 39, 0.98) 100%);
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        border-radius: 18px;
+        padding: 18px;
+        margin-top: 18px;
+        box-shadow: 0 10px 24px rgba(0,0,0,0.22);
     }
 
     .model-title {
@@ -124,31 +115,33 @@ st.markdown("""
         font-weight: 800;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
     }
 
-    .model-grid {
+    .model-main {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1.2fr 0.9fr 0.9fr 1fr;
         gap: 10px;
     }
 
-    .model-box {
+    .model-stat {
         background: rgba(8, 17, 32, 0.95);
         border: 1px solid rgba(56, 189, 248, 0.14);
         border-radius: 12px;
         padding: 12px 14px;
     }
 
-    .model-label {
+    .model-stat-label {
         color: #bae6fd;
-        font-size: 0.76rem;
+        font-size: 0.74rem;
         margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
     }
 
-    .model-value {
+    .model-stat-value {
         color: #f8fafc;
-        font-size: 1.02rem;
+        font-size: 1.08rem;
         font-weight: 800;
     }
 
@@ -185,6 +178,34 @@ st.markdown("""
         margin-top: 8px;
     }
 
+    .recent-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+
+    .recent-box {
+        background: #0f172a;
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 12px;
+        padding: 10px 12px;
+    }
+
+    .recent-label {
+        color: #94a3b8;
+        font-size: 0.72rem;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .recent-value {
+        color: #f8fafc;
+        font-size: 0.98rem;
+        font-weight: 700;
+    }
+
     .stSelectbox label, .stNumberInput label, .stCheckbox label {
         color: #e5e7eb !important;
         font-weight: 600;
@@ -217,9 +238,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# -----------------------------
-# Constants
-# -----------------------------
 CURRENT_SEASON = "2025-26"
 
 BOOKMAKER_MAP = {
@@ -265,9 +283,6 @@ NBA_TEAMS = {
 }
 
 
-# -----------------------------
-# Helpers / cache
-# -----------------------------
 @st.cache_resource
 def load_model():
     return joblib.load("models/points_regression.pkl")
@@ -476,18 +491,12 @@ def extract_player_prop(event_odds_json, selected_player):
     return None
 
 
-# -----------------------------
-# Load resources
-# -----------------------------
 model = load_model()
 model_stats = load_model_stats()
 points_std = model_stats["std_dev"]
 _, player_name_map, player_names = load_active_players()
 
 
-# -----------------------------
-# Header
-# -----------------------------
 st.markdown("""
 <div class="hero">
     <div class="hero-title">NBA Points Prop Predictor</div>
@@ -495,9 +504,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# -----------------------------
-# Controls
-# -----------------------------
 st.caption("Search for a player by name")
 
 selected_player = st.selectbox(
@@ -516,10 +522,6 @@ selected_book = st.selectbox(
 manual_override = st.checkbox("Manually override sportsbook line", value=False)
 odds_api_key = os.getenv("ODDS_API_KEY")
 
-
-# -----------------------------
-# Main app
-# -----------------------------
 if selected_player:
     try:
         player_id = player_name_map[selected_player]
@@ -669,60 +671,52 @@ if selected_player:
         prob_under = 1 - prob_over
         pick_text, pick_class = get_pick_label(prob_over, prob_under)
 
-        # -----------------------------
-        # Game Info
-        # -----------------------------
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">Game Info</div>', unsafe_allow_html=True)
-
         st.markdown(f"""
-        <div class="compact-grid">
-            <div class="compact-box">
-                <div class="compact-label">Status</div>
-                <div class="compact-value">{game_status}</div>
+        <div class="summary-strip">
+            <div class="summary-item">
+                <div class="summary-label">Status</div>
+                <div class="summary-value">{game_status}</div>
             </div>
-            <div class="compact-box">
-                <div class="compact-label">Matchup</div>
-                <div class="compact-value">{matchup}</div>
+            <div class="summary-item">
+                <div class="summary-label">Matchup</div>
+                <div class="summary-value">{matchup}</div>
             </div>
-            <div class="compact-box">
-                <div class="compact-label">Date</div>
-                <div class="compact-value">{game_date}</div>
+            <div class="summary-item">
+                <div class="summary-label">Date</div>
+                <div class="summary-value">{game_date}</div>
             </div>
-            <div class="compact-box">
-                <div class="compact-label">Time</div>
-                <div class="compact-value">{game_time}</div>
+            <div class="summary-item">
+                <div class="summary-label">Time</div>
+                <div class="summary-value">{game_time}</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
-
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # -----------------------------
-        # Sportsbook Line
-        # -----------------------------
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">Sportsbook Line</div>', unsafe_allow_html=True)
 
         update_text = book_updated if book_updated else "N/A"
 
         st.markdown(f"""
-        <div class="compact-grid">
-            <div class="compact-box">
-                <div class="compact-label">Book</div>
-                <div class="compact-value">{book_name}</div>
+        <div class="summary-strip">
+            <div class="summary-item">
+                <div class="summary-label">Book</div>
+                <div class="summary-value">{book_name}</div>
             </div>
-            <div class="compact-box">
-                <div class="compact-label">Source</div>
-                <div class="compact-value">{line_source}</div>
+            <div class="summary-item">
+                <div class="summary-label">Source</div>
+                <div class="summary-value">{line_source}</div>
             </div>
-            <div class="compact-box">
-                <div class="compact-label">Line</div>
-                <div class="compact-value">{line:.1f}</div>
+            <div class="summary-item">
+                <div class="summary-label">Line</div>
+                <div class="summary-value">{line:.1f}</div>
             </div>
-            <div class="compact-box">
-                <div class="compact-label">Prices</div>
-                <div class="compact-value">O {american_odds_text(over_price)} / U {american_odds_text(under_price)}</div>
+            <div class="summary-item">
+                <div class="summary-label">Prices</div>
+                <div class="summary-value">O {american_odds_text(over_price)} / U {american_odds_text(under_price)}</div>
             </div>
         </div>
         <div class="small-note">Last update: {update_text}</div>
@@ -735,29 +729,26 @@ if selected_player:
 
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # -----------------------------
-        # Model Output / Prediction
-        # -----------------------------
         st.markdown('<div class="model-card">', unsafe_allow_html=True)
         st.markdown('<div class="model-title">Model Output</div>', unsafe_allow_html=True)
 
         st.markdown(f"""
-        <div class="model-grid">
-            <div class="model-box">
-                <div class="model-label">Predicted Points</div>
-                <div class="model-value">{predicted_points:.2f}</div>
+        <div class="model-main">
+            <div class="model-stat">
+                <div class="model-stat-label">Predicted Points</div>
+                <div class="model-stat-value">{predicted_points:.2f}</div>
             </div>
-            <div class="model-box">
-                <div class="model-label">Sportsbook Line</div>
-                <div class="model-value">{line:.1f}</div>
+            <div class="model-stat">
+                <div class="model-stat-label">Sportsbook Line</div>
+                <div class="model-stat-value">{line:.1f}</div>
             </div>
-            <div class="model-box">
-                <div class="model-label">Model Edge</div>
-                <div class="model-value">{edge:+.2f}</div>
+            <div class="model-stat">
+                <div class="model-stat-label">Model Edge</div>
+                <div class="model-stat-value">{edge:+.2f}</div>
             </div>
-            <div class="model-box">
-                <div class="model-label">Win Probability Split</div>
-                <div class="model-value">O {prob_over:.1%} / U {prob_under:.1%}</div>
+            <div class="model-stat">
+                <div class="model-stat-label">Probability Split</div>
+                <div class="model-stat-value">O {prob_over:.1%} / U {prob_under:.1%}</div>
             </div>
         </div>
 
@@ -767,15 +758,12 @@ if selected_player:
         """, unsafe_allow_html=True)
 
         st.markdown(
-            '<div class="small-note">This section reflects the trained regression model output compared against the sportsbook line.</div>',
+            '<div class="small-note">This section reflects the trained regression model compared against the sportsbook line.</div>',
             unsafe_allow_html=True
         )
 
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # -----------------------------
-        # Recent Form
-        # -----------------------------
         recent_games = df.sort_values("GAME_DATE", ascending=False).head(5).copy()
         recent_games["GAME_DATE"] = recent_games["GAME_DATE"].dt.strftime("%Y-%m-%d")
 
@@ -783,22 +771,22 @@ if selected_player:
         st.markdown('<div class="section-title">Recent Form</div>', unsafe_allow_html=True)
 
         st.markdown(f"""
-        <div class="compact-grid">
-            <div class="compact-box">
-                <div class="compact-label">Avg Points</div>
-                <div class="compact-value">{latest["player_avg_pts"]:.2f}</div>
+        <div class="recent-grid">
+            <div class="recent-box">
+                <div class="recent-label">Avg Points</div>
+                <div class="recent-value">{latest["player_avg_pts"]:.2f}</div>
             </div>
-            <div class="compact-box">
-                <div class="compact-label">Last 5 Points</div>
-                <div class="compact-value">{latest["last5_pts"]:.2f}</div>
+            <div class="recent-box">
+                <div class="recent-label">Last 5 Points</div>
+                <div class="recent-value">{latest["last5_pts"]:.2f}</div>
             </div>
-            <div class="compact-box">
-                <div class="compact-label">Last 5 Minutes</div>
-                <div class="compact-value">{latest["last5_minutes"]:.2f}</div>
+            <div class="recent-box">
+                <div class="recent-label">Last 5 Minutes</div>
+                <div class="recent-value">{latest["last5_minutes"]:.2f}</div>
             </div>
-            <div class="compact-box">
-                <div class="compact-label">Last 5 GmSc</div>
-                <div class="compact-value">{latest["last5_gmsc"]:.2f}</div>
+            <div class="recent-box">
+                <div class="recent-label">Last 5 GmSc</div>
+                <div class="recent-value">{latest["last5_gmsc"]:.2f}</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
