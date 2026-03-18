@@ -4,6 +4,8 @@ import joblib
 from datetime import datetime
 import json
 from scipy.stats import norm
+import pytz
+from datetime import datetime
 
 
 from nba_api.stats.static import players
@@ -47,9 +49,9 @@ if selected_player:
 
     # Today's NBA schedule
 
+    eastern = pytz.timezone("US/Eastern")
     now_et = datetime.now(eastern)
-
-    # If it's before 4 AM ET, still consider it "yesterday's slate"
+    
     if now_et.hour < 4:
         now_et = now_et - pd.Timedelta(days=1)
     
