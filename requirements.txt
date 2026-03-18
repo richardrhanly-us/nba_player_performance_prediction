@@ -5,3 +5,4 @@ scipy
 nba_api
 scikit-learn
 pytz
+streamlit-searchbox
