@@ -1,4 +1,6 @@
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://nbaplayerperformanceprediction-7ajdpm4cmafadrmuczbvyf.streamlit.app/)
+<a href="https://nbaplayerperformanceprediction-7ajdpm4cmafadrmuczbvyf.streamlit.app/" target="_blank">
+  <img src="https://static.streamlit.io/badges/streamlit_badge_black_white.svg" alt="Streamlit App">
+</a>
 
 # NBA Player Performance Prediction
 
