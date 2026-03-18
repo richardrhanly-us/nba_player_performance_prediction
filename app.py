@@ -526,8 +526,21 @@ if selected_player:
                         event_id,
                         BOOKMAKER_MAP[selected_book]
                     )
-                    prop = extract_player_prop(event_odds, selected_player)
-
+                    with st.expander("Debug: API response"):
+                        st.json(event_odds)
+                    with st.expander("Debug: matched market outcomes"):
+                        st.write("Selected player:", selected_player)
+                
+                        for bookmaker in event_odds.get("bookmakers", []):
+                            st.write("Bookmaker:", bookmaker.get("title"))
+                
+                            for market in bookmaker.get("markets", []):
+                                st.write("Market key:", market.get("key"))
+                
+                                for outcome in market.get("outcomes", []):
+                                    st.write(outcome)
+                                    prop = extract_player_prop(event_odds, selected_player)
+                        
                     if prop:
                         sportsbook_line = prop["line"]
                         over_price = prop["over_price"]
