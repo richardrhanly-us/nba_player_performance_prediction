@@ -4,7 +4,7 @@ import joblib
 from datetime import datetime
 import json
 from scipy.stats import norm
-from difflib import get_close_matches
+
 
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
@@ -13,23 +13,6 @@ from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv
 all_players = players.get_players()
 player_name_map = {p["full_name"]: p["id"] for p in all_players}
 player_names = list(player_name_map.keys())
-
-
-def find_player_matches(query, max_results=10):
-    query = query.strip()
-
-    if not query:
-        return player_names[:10]
-
-    partial = [name for name in player_names if query.lower() in name.lower()]
-    fuzzy = get_close_matches(query, player_names, n=max_results, cutoff=0.5)
-
-    combined = []
-    for name in partial + fuzzy:
-        if name not in combined:
-            combined.append(name)
-
-    return combined[:max_results]
 
 
 st.write("NEW VERSION LOADED 1.3")
@@ -43,16 +26,13 @@ with open("models/points_model_stats.json", "r") as f:
 
 points_std = model_stats["std_dev"]
 
-st.caption("Start typing a name (e.g., Luka, Jokic, LeBron)")
-
-search_query = st.text_input("Search player")
-
-matches = find_player_matches(search_query)
+st.caption("Search for a player by name")
 
 selected_player = st.selectbox(
-    "Select player",
-    matches,
-    index=0 if matches else None
+    "Player",
+    options=sorted(player_names),
+    index=None,
+    placeholder="Start typing a player name..."
 )
 
 line = st.number_input("Enter points line", min_value=0.0, value=20.5, step=0.5)
