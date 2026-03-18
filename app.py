@@ -9,6 +9,7 @@ import unicodedata
 
 from scipy.stats import norm
 from datetime import datetime
+from streamlit_searchbox import st_searchbox
 
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
@@ -141,22 +142,9 @@ st.markdown("""
         margin-top: 10px;
     }
 
-    .stSelectbox label, .stNumberInput label, .stCheckbox label, .stTextInput label {
+    .stSelectbox label, .stNumberInput label, .stCheckbox label {
         color: #e5e7eb !important;
         font-weight: 600;
-    }
-
-    div[data-baseweb="select"] > div {
-        background-color: #111827 !important;
-        border: 1px solid rgba(255,255,255,0.10) !important;
-        border-radius: 14px !important;
-        color: white !important;
-    }
-
-    .stTextInput > div > div > input {
-        background-color: #111827 !important;
-        color: white !important;
-        border-radius: 14px !important;
     }
 
     .stNumberInput > div > div > input {
@@ -179,10 +167,49 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# -----------------------------
-# Helpers / cache
-# -----------------------------
 CURRENT_SEASON = "2025-26"
+
+BOOKMAKER_MAP = {
+    "DraftKings": "draftkings",
+    "FanDuel": "fanduel",
+    "BetMGM": "betmgm",
+    "Caesars": "caesars",
+    "ESPN BET": "espnbet",
+    "Bovada": "bovada"
+}
+
+NBA_TEAMS = {
+    "ATL": "Atlanta Hawks",
+    "BOS": "Boston Celtics",
+    "BKN": "Brooklyn Nets",
+    "CHA": "Charlotte Hornets",
+    "CHI": "Chicago Bulls",
+    "CLE": "Cleveland Cavaliers",
+    "DAL": "Dallas Mavericks",
+    "DEN": "Denver Nuggets",
+    "DET": "Detroit Pistons",
+    "GSW": "Golden State Warriors",
+    "HOU": "Houston Rockets",
+    "IND": "Indiana Pacers",
+    "LAC": "Los Angeles Clippers",
+    "LAL": "Los Angeles Lakers",
+    "MEM": "Memphis Grizzlies",
+    "MIA": "Miami Heat",
+    "MIL": "Milwaukee Bucks",
+    "MIN": "Minnesota Timberwolves",
+    "NOP": "New Orleans Pelicans",
+    "NYK": "New York Knicks",
+    "OKC": "Oklahoma City Thunder",
+    "ORL": "Orlando Magic",
+    "PHI": "Philadelphia 76ers",
+    "PHX": "Phoenix Suns",
+    "POR": "Portland Trail Blazers",
+    "SAC": "Sacramento Kings",
+    "SAS": "San Antonio Spurs",
+    "TOR": "Toronto Raptors",
+    "UTA": "Utah Jazz",
+    "WAS": "Washington Wizards"
+}
 
 
 @st.cache_resource
@@ -201,24 +228,6 @@ def load_active_players():
     active_players = players.get_active_players()
     name_map = {p["full_name"]: p["id"] for p in active_players}
     return active_players, name_map, sorted(name_map.keys())
-
-
-@st.cache_data(ttl=3600, show_spinner=False)
-def player_has_current_season_gamelog(player_id: int, season: str = CURRENT_SEASON) -> bool:
-    try:
-        gamelog = playergamelog.PlayerGameLog(player_id=player_id, season=season)
-        df = gamelog.get_data_frames()[0]
-        return not df.empty
-    except Exception:
-        return False
-
-
-def get_pick_label(prob_over, prob_under):
-    if prob_over >= 0.60:
-        return "Lean Over", "pick-over"
-    if prob_under >= 0.60:
-        return "Lean Under", "pick-under"
-    return "No Edge", "pick-none"
 
 
 def normalize_name(name: str) -> str:
@@ -241,6 +250,42 @@ def normalize_name(name: str) -> str:
     )
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def player_has_current_season_gamelog(player_id: int, season: str = CURRENT_SEASON) -> bool:
+    try:
+        gamelog = playergamelog.PlayerGameLog(player_id=player_id, season=season)
+        df = gamelog.get_data_frames()[0]
+        return not df.empty
+    except Exception:
+        return False
+
+
+def search_players(search_term: str):
+    if not search_term or not search_term.strip():
+        return []
+
+    query = normalize_name(search_term)
+    matches = []
+
+    for name in player_names:
+        if query in normalize_name(name):
+            player_id = player_name_map[name]
+            if player_has_current_season_gamelog(player_id):
+                matches.append(name)
+        if len(matches) >= 15:
+            break
+
+    return matches
+
+
+def get_pick_label(prob_over, prob_under):
+    if prob_over >= 0.60:
+        return "Lean Over", "pick-over"
+    if prob_under >= 0.60:
+        return "Lean Under", "pick-under"
+    return "No Edge", "pick-none"
+
+
 def american_odds_text(price):
     if price is None:
         return "N/A"
@@ -249,31 +294,6 @@ def american_odds_text(price):
         return f"+{price}" if price > 0 else str(price)
     except Exception:
         return str(price)
-
-
-def get_search_matches(search_text, player_names, player_name_map, max_results=20):
-    if not search_text or not search_text.strip():
-        return []
-
-    query = normalize_name(search_text)
-
-    raw_matches = []
-    for name in player_names:
-        normalized_player_name = normalize_name(name)
-        if query in normalized_player_name:
-            raw_matches.append(name)
-
-    raw_matches = raw_matches[:max_results * 2]
-
-    eligible_matches = []
-    for name in raw_matches:
-        player_id = player_name_map[name]
-        if player_has_current_season_gamelog(player_id):
-            eligible_matches.append(name)
-        if len(eligible_matches) >= max_results:
-            break
-
-    return eligible_matches
 
 
 def get_team_game_info(team_id, team_abbr, target_date_str):
@@ -315,58 +335,10 @@ def get_team_game_info(team_id, team_abbr, target_date_str):
     }
 
 
-BOOKMAKER_MAP = {
-    "DraftKings": "draftkings",
-    "FanDuel": "fanduel",
-    "BetMGM": "betmgm",
-    "Caesars": "caesars",
-    "ESPN BET": "espnbet",
-    "Bovada": "bovada"
-}
-
-
-NBA_TEAMS = {
-    "ATL": "Atlanta Hawks",
-    "BOS": "Boston Celtics",
-    "BKN": "Brooklyn Nets",
-    "CHA": "Charlotte Hornets",
-    "CHI": "Chicago Bulls",
-    "CLE": "Cleveland Cavaliers",
-    "DAL": "Dallas Mavericks",
-    "DEN": "Denver Nuggets",
-    "DET": "Detroit Pistons",
-    "GSW": "Golden State Warriors",
-    "HOU": "Houston Rockets",
-    "IND": "Indiana Pacers",
-    "LAC": "Los Angeles Clippers",
-    "LAL": "Los Angeles Lakers",
-    "MEM": "Memphis Grizzlies",
-    "MIA": "Miami Heat",
-    "MIL": "Milwaukee Bucks",
-    "MIN": "Minnesota Timberwolves",
-    "NOP": "New Orleans Pelicans",
-    "NYK": "New York Knicks",
-    "OKC": "Oklahoma City Thunder",
-    "ORL": "Orlando Magic",
-    "PHI": "Philadelphia 76ers",
-    "PHX": "Phoenix Suns",
-    "POR": "Portland Trail Blazers",
-    "SAC": "Sacramento Kings",
-    "SAS": "San Antonio Spurs",
-    "TOR": "Toronto Raptors",
-    "UTA": "Utah Jazz",
-    "WAS": "Washington Wizards"
-}
-
-
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_upcoming_nba_events(api_key):
     url = "https://api.the-odds-api.com/v4/sports/basketball_nba/events"
-    resp = requests.get(
-        url,
-        params={"apiKey": api_key},
-        timeout=20
-    )
+    resp = requests.get(url, params={"apiKey": api_key}, timeout=20)
     resp.raise_for_status()
     return resp.json()
 
@@ -410,8 +382,7 @@ def fetch_player_points_market(api_key, event_id, bookmaker_key):
 def extract_player_prop(event_odds_json, selected_player):
     target_name = normalize_name(selected_player)
 
-    bookmakers = event_odds_json.get("bookmakers", [])
-    for bookmaker in bookmakers:
+    for bookmaker in event_odds_json.get("bookmakers", []):
         book_title = bookmaker.get("title", "Unknown")
 
         for market in bookmaker.get("markets", []):
@@ -419,13 +390,11 @@ def extract_player_prop(event_odds_json, selected_player):
                 continue
 
             book_last_update = market.get("last_update", "")
-
             over_outcomes = []
             under_outcomes = []
 
             for outcome in market.get("outcomes", []):
-                outcome_name = normalize_name(outcome.get("description", ""))
-                if outcome_name != target_name:
+                if normalize_name(outcome.get("description", "")) != target_name:
                     continue
 
                 if outcome.get("name") == "Over":
@@ -448,19 +417,11 @@ def extract_player_prop(event_odds_json, selected_player):
     return None
 
 
-# -----------------------------
-# Load resources
-# -----------------------------
 model = load_model()
 model_stats = load_model_stats()
 points_std = model_stats["std_dev"]
-
 _, player_name_map, player_names = load_active_players()
 
-
-# -----------------------------
-# Header
-# -----------------------------
 st.markdown("""
 <div class="hero">
     <div class="hero-title">NBA Points Prop Predictor</div>
@@ -468,30 +429,15 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-
-# -----------------------------
-# Controls
-# -----------------------------
 st.caption("Search for a player by name")
 
-player_search = st.text_input(
-    "Player search",
-    value="",
-    placeholder="Start typing a player name..."
+selected_player = st_searchbox(
+    search_function=search_players,
+    placeholder="Start typing a player name...",
+    label="Player",
+    clear_on_submit=False,
+    key="player_searchbox"
 )
-
-selected_player = None
-matching_players = get_search_matches(player_search, player_names, player_name_map)
-
-if player_search.strip():
-    if matching_players:
-        selected_player = st.selectbox(
-            "Matching players",
-            options=matching_players,
-            index=0
-        )
-    else:
-        st.info("No active players with current-season game logs matched your search.")
 
 selected_book = st.selectbox(
     "Sportsbook",
@@ -500,13 +446,8 @@ selected_book = st.selectbox(
 )
 
 manual_override = st.checkbox("Manually override sportsbook line", value=False)
-
 odds_api_key = os.getenv("ODDS_API_KEY")
 
-
-# -----------------------------
-# Main app
-# -----------------------------
 if selected_player:
     try:
         player_id = player_name_map[selected_player]
@@ -524,11 +465,6 @@ if selected_player:
         today_str = now_et.strftime("%m/%d/%Y")
         today_game_info = get_team_game_info(team_id, team_abbr, today_str)
 
-        game_status = ""
-        matchup = ""
-        game_date = ""
-        game_time = ""
-
         if today_game_info:
             game_status = "Game today"
             matchup = today_game_info["matchup"]
@@ -536,7 +472,6 @@ if selected_player:
             game_time = today_game_info["time"]
         else:
             next_game_info = None
-
             for i in range(1, 8):
                 future_date = now_et + pd.Timedelta(days=i)
                 future_date_str = future_date.strftime("%m/%d/%Y")
@@ -583,7 +518,6 @@ if selected_player:
                         book_name = prop["bookmaker"]
                         book_updated = prop["last_update"]
                         line_source = "Sportsbook API"
-
             except Exception:
                 sportsbook_line = None
 
@@ -602,11 +536,7 @@ if selected_player:
         elif sportsbook_line is None:
             line_source = "Manual fallback"
 
-        gamelog = playergamelog.PlayerGameLog(
-            player_id=player_id,
-            season=CURRENT_SEASON
-        )
-
+        gamelog = playergamelog.PlayerGameLog(player_id=player_id, season=CURRENT_SEASON)
         df = gamelog.get_data_frames()[0]
 
         if df.empty:
@@ -666,12 +596,10 @@ if selected_player:
 
         prob_over = 1 - norm.cdf(line, loc=predicted_points, scale=points_std)
         prob_under = 1 - prob_over
-
         pick_text, pick_class = get_pick_label(prob_over, prob_under)
 
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">Game Info</div>', unsafe_allow_html=True)
-
         st.markdown(f"""
         <div class="stat-grid">
             <div class="stat-box">
@@ -692,14 +620,11 @@ if selected_player:
             </div>
         </div>
         """, unsafe_allow_html=True)
-
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">Sportsbook Line</div>', unsafe_allow_html=True)
-
         update_text = book_updated if book_updated else "N/A"
-
         st.markdown(f"""
         <div class="stat-grid">
             <div class="stat-box">
@@ -726,12 +651,10 @@ if selected_player:
             st.info("ODDS_API_KEY not found. Using manual line only.")
         elif sportsbook_line is None:
             st.info("No player points line found for this player/book yet. Using manual fallback.")
-
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">Prediction</div>', unsafe_allow_html=True)
-
         st.markdown(f"""
         <div class="stat-grid">
             <div class="stat-box">
@@ -756,12 +679,7 @@ if selected_player:
             {pick_text}
         </div>
         """, unsafe_allow_html=True)
-
-        st.markdown(
-            '<div class="small-note">This is a model lean, not guaranteed betting advice.</div>',
-            unsafe_allow_html=True
-        )
-
+        st.markdown('<div class="small-note">This is a model lean, not guaranteed betting advice.</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
         recent_games = df.sort_values("GAME_DATE", ascending=False).head(5).copy()
@@ -769,7 +687,6 @@ if selected_player:
 
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">Recent Form</div>', unsafe_allow_html=True)
-
         st.markdown(f"""
         <div class="stat-grid">
             <div class="stat-box">
@@ -796,7 +713,6 @@ if selected_player:
             use_container_width=True,
             hide_index=True
         )
-
         st.markdown('</div>', unsafe_allow_html=True)
 
     except Exception as e:
