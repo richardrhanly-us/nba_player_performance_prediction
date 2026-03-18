@@ -14,7 +14,7 @@ from datetime import datetime
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
 
-APP_VERSION = "v1.9"
+APP_VERSION = "v1.10"
 
 
 st.set_page_config(
@@ -839,11 +839,11 @@ if selected_player:
         <div class="prob-interpretation" style="
         margin-top: 12px;
         padding: 10px 14px;
-        font-size: 0.95rem;
+        font-size: 1.5rem;
         color: #cbd5e1;
         opacity: 0.9;
         ">
-        According to the model, the <b>{'over' if prob_over > prob_under else 'under'}</b> is favored with a {max(prob_over, prob_under):.0%} probability, compared to {min(prob_over, prob_under):.0%} on the opposite side.
+        According to the model, there is a <b>{prob_over:.0%}</b> chance to hit the over and a <b>{prob_under:.0%}</b> chance to hit the under.
         </div>
         
         <div class="small-note">
