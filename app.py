@@ -668,10 +668,13 @@ if selected_player:
         prob_over = 1 - norm.cdf(line, loc=predicted_points, scale=points_std)
         prob_under = 1 - prob_over
         pick_text, pick_class = get_pick_label(prob_over, prob_under)
-        
+
+        # -----------------------------
+        # Game Info
+        # -----------------------------
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">Game Info</div>', unsafe_allow_html=True)
-        
+
         st.markdown(f"""
         <div class="compact-grid">
             <div class="compact-box">
@@ -692,17 +695,17 @@ if selected_player:
             </div>
         </div>
         """, unsafe_allow_html=True)
-        
+
         st.markdown('</div>', unsafe_allow_html=True)
-        
 
-        
-
+        # -----------------------------
+        # Sportsbook Line
+        # -----------------------------
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">Sportsbook Line</div>', unsafe_allow_html=True)
-        
+
         update_text = book_updated if book_updated else "N/A"
-        
+
         st.markdown(f"""
         <div class="compact-grid">
             <div class="compact-box">
@@ -725,16 +728,19 @@ if selected_player:
         <div class="small-note">Last update: {update_text}</div>
         """, unsafe_allow_html=True)
 
-if not odds_api_key:
-    st.info("ODDS_API_KEY not found. Using manual line only.")
-elif sportsbook_line is None:
-    st.info("No player points line found for this player/book yet. Using manual fallback.")
+        if not odds_api_key:
+            st.info("ODDS_API_KEY not found. Using manual line only.")
+        elif sportsbook_line is None:
+            st.info("No player points line found for this player/book yet. Using manual fallback.")
 
-st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
+        # -----------------------------
+        # Model Output / Prediction
+        # -----------------------------
         st.markdown('<div class="model-card">', unsafe_allow_html=True)
         st.markdown('<div class="model-title">Model Output</div>', unsafe_allow_html=True)
-        
+
         st.markdown(f"""
         <div class="model-grid">
             <div class="model-box">
@@ -754,41 +760,45 @@ st.markdown('</div>', unsafe_allow_html=True)
                 <div class="model-value">O {prob_over:.1%} / U {prob_under:.1%}</div>
             </div>
         </div>
-        
+
         <div class="pick-banner {pick_class}">
             {pick_text}
         </div>
         """, unsafe_allow_html=True)
-        
+
         st.markdown(
             '<div class="small-note">This section reflects the trained regression model output compared against the sportsbook line.</div>',
             unsafe_allow_html=True
         )
-        
+
         st.markdown('</div>', unsafe_allow_html=True)
 
+        # -----------------------------
+        # Recent Form
+        # -----------------------------
         recent_games = df.sort_values("GAME_DATE", ascending=False).head(5).copy()
         recent_games["GAME_DATE"] = recent_games["GAME_DATE"].dt.strftime("%Y-%m-%d")
 
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">Recent Form</div>', unsafe_allow_html=True)
+
         st.markdown(f"""
-        <div class="stat-grid">
-            <div class="stat-box">
-                <div class="stat-label">Avg Points</div>
-                <div class="stat-value">{latest["player_avg_pts"]:.2f}</div>
+        <div class="compact-grid">
+            <div class="compact-box">
+                <div class="compact-label">Avg Points</div>
+                <div class="compact-value">{latest["player_avg_pts"]:.2f}</div>
             </div>
-            <div class="stat-box">
-                <div class="stat-label">Last 5 Points</div>
-                <div class="stat-value">{latest["last5_pts"]:.2f}</div>
+            <div class="compact-box">
+                <div class="compact-label">Last 5 Points</div>
+                <div class="compact-value">{latest["last5_pts"]:.2f}</div>
             </div>
-            <div class="stat-box">
-                <div class="stat-label">Last 5 Minutes</div>
-                <div class="stat-value">{latest["last5_minutes"]:.2f}</div>
+            <div class="compact-box">
+                <div class="compact-label">Last 5 Minutes</div>
+                <div class="compact-value">{latest["last5_minutes"]:.2f}</div>
             </div>
-            <div class="stat-box">
-                <div class="stat-label">Last 5 GmSc</div>
-                <div class="stat-value">{latest["last5_gmsc"]:.2f}</div>
+            <div class="compact-box">
+                <div class="compact-label">Last 5 GmSc</div>
+                <div class="compact-value">{latest["last5_gmsc"]:.2f}</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -798,6 +808,7 @@ st.markdown('</div>', unsafe_allow_html=True)
             use_container_width=True,
             hide_index=True
         )
+
         st.markdown('</div>', unsafe_allow_html=True)
 
     except Exception as e:
