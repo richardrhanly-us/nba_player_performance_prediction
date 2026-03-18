@@ -843,7 +843,8 @@ if selected_player:
         color: #cbd5e1;
         opacity: 0.9;
         ">
-        According to the model, there is a <b>{prob_over:.0%}</b> chance to hit the <b>Over</b> and a <b>{prob_under:.0%}</b> chance to hit the <b>Under</b>.
+        The model favors the <b>{'over' if prob_over > prob_under else 'under'}</b>, 
+        projecting <b>{max(prob_over, prob_under):.0%}</b> vs <b>{min(prob_over, prob_under):.0%}</b>.
         </div>
         
         <div class="small-note">
