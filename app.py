@@ -4,9 +4,35 @@ import joblib
 from datetime import datetime
 import json
 from scipy.stats import norm
+from difflib import get_close_matches
 
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
+
+# Build player lookup lists once
+all_players = players.get_players()
+player_name_map = {p["full_name"]: p["id"] for p in all_players}
+player_names = list(player_name_map.keys())
+
+
+def find_player_matches(query, max_results=10):
+    query = query.strip()
+
+    if not query:
+        return player_names[:10]
+
+    # Partial matches (best UX)
+    partial = [name for name in player_names if query.lower() in name.lower()]
+
+    # Fuzzy matches (typos)
+    fuzzy = get_close_matches(query, player_names, n=max_results, cutoff=0.5)
+
+    combined = []
+    for name in partial + fuzzy:
+        if name not in combined:
+            combined.append(name)
+
+    return combined[:max_results]
 
 st.write("NEW VERSION LOADED 1.2")
 
@@ -19,16 +45,40 @@ with open("models/points_model_stats.json", "r") as f:
 
 points_std = model_stats["std_dev"]
 
-player_name = st.text_input("Enter player name")
+st.caption("Start typing a name (e.g., Luka, Jokic, LeBron)")
+
+search_query = st.text_input("Search player")
+
+matches = find_player_matches(search_query)
+
+selected_player = st.selectbox(
+    "Select player",
+    matches,
+    index=0 if matches else None
+)
 line = st.number_input("Enter points line", min_value=0.0, value=20.5, step=0.5)
 
-if player_name:
-    player_list = players.find_players_by_full_name(player_name)
+selected_player = None
 
-    if not player_list:
-        st.error("Player not found")
+if player_name:
+    matches = find_player_matches(player_name)
+
+    if not matches:
+        st.error("No player found")
     else:
-        player_id = player_list[0]["id"]
+        # Exact match found
+        if matches[0].lower() == player_name.strip().lower():
+            selected_player = matches[0]
+        else:
+            st.write("Did you mean:")
+            selected_player = st.radio(
+                "Suggested players",
+                matches,
+                label_visibility="collapsed"
+            )
+
+if selected_player:
+    player_id = player_name_map[selected_player]
 
         # Current team info
         player_info = commonplayerinfo.CommonPlayerInfo(player_id=player_id).get_data_frames()[0]
