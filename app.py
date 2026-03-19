@@ -678,13 +678,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-<div class="control-panel">
-    <div class="control-title">Build a Prop</div>
-    <div class="control-subtitle">Pick a player, choose a book, and load the current points line.</div>
-    <div class="top-divider"></div>
-</div>
-""", unsafe_allow_html=True)
 
 selected_search_name = st.selectbox(
     "Player",
