@@ -14,7 +14,7 @@ from datetime import datetime
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
 
-APP_VERSION = "v1.15"
+APP_VERSION = "v1.15-debug"
 
 
 st.set_page_config(
@@ -218,7 +218,6 @@ st.markdown("""
         overflow: hidden;
     }
 
-        
     .model-subtitle {
         font-size: 0.75rem;
         letter-spacing: 1px;
@@ -226,7 +225,6 @@ st.markdown("""
         opacity: 0.6;
         margin-bottom: 8px;
     }
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -362,11 +360,11 @@ def get_team_theme(team_abbr: str):
 
 
 def get_pick_label(prob_over, prob_under):
-    if prob_over >= 0.60:
+    if abs(prob_over - prob_under) <= 0.02:
+        return "No Edge", "neutral"
+    if prob_over > prob_under:
         return "Lean Over", "over"
-    if prob_under >= 0.60:
-        return "Lean Under", "under"
-    return "No Edge", "neutral"
+    return "Lean Under", "under"
 
 
 def american_odds_text(price):
@@ -538,6 +536,7 @@ def extract_player_prop(event_odds_json, selected_player):
 
     return None
 
+
 model = load_model()
 model_stats = load_model_stats()
 points_std = model_stats["std_dev"]
@@ -641,22 +640,28 @@ if selected_player:
             try:
                 events = fetch_upcoming_nba_events(odds_api_key)
                 event_id = find_matching_event_id(events, matchup)
+
                 st.write("DEBUG matchup:", matchup)
                 st.write("DEBUG normalized player:", normalize_name(selected_player))
                 st.write("DEBUG event_id:", event_id)
-        
+                st.write("DEBUG events count:", len(events))
+                st.write(
+                    "DEBUG events sample:",
+                    [(e.get("home_team"), e.get("away_team")) for e in events[:10]]
+                )
+
                 if event_id:
                     event_odds = fetch_player_points_market(
                         odds_api_key,
                         event_id,
                         BOOKMAKER_MAP[selected_book]
                     )
-        
+
                     st.write("DEBUG event_odds:", event_odds)
-        
+
                     prop = extract_player_prop(event_odds, selected_player)
                     st.write("DEBUG prop:", prop)
-        
+
                     if prop:
                         sportsbook_line = prop["line"]
                         over_price = prop["over_price"]
@@ -664,8 +669,8 @@ if selected_player:
                         book_name = prop["bookmaker"]
                         book_updated = prop["last_update"]
                         line_source = "Sportsbook API"
-
-            except Exception:
+            except Exception as e:
+                st.write("DEBUG odds error:", str(e))
                 sportsbook_line = None
 
         default_line = sportsbook_line if sportsbook_line is not None else 20.5
@@ -753,8 +758,8 @@ if selected_player:
             pick_border = secondary
             pick_text_color = secondary
         else:
-            pick_bg = hex_to_rgba(primary, 0.16)
-            pick_border = primary
+            pick_bg = "rgba(148, 163, 184, 0.12)"
+            pick_border = "#94a3b8"
             pick_text_color = "#e5e7eb"
 
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
@@ -815,72 +820,78 @@ if selected_player:
 
         st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown(
-        f"""
-        <div class="model-card" style="
-        background: {model_bg};
-        border: 3px solid {model_border};
-        box-shadow:
-            0 0 0 1px {hex_to_rgba(secondary, 0.16)},
-            0 0 28px {model_glow},
-            0 0 50px {hex_to_rgba(primary, 0.18)};
-        ">
-        
-        <div class="model-title" style="color: {model_title_color};">
-            {selected_player}
-        </div>
-        <div class="model-subtitle">
-            Model Output
-        </div>
-        
-        <div class="model-main">
-        <div class="model-stat" style="background: {model_stat_bg}; border: 1px solid {model_stat_border};">
-        <div class="model-stat-label" style="color: {model_label_color};">Predicted Points</div>
-        <div class="model-stat-value">{predicted_points:.2f}</div>
-        </div>
-        
-        <div class="model-stat">
-        <div class="model-stat-label">Sportsbook Line</div>
-        <div class="model-stat-value">{line:.1f}</div>
-        </div>
-        
-        <div class="model-stat">
-        <div class="model-stat-label">Model Edge</div>
-        <div class="model-stat-value">{edge:+.2f}</div>
-        </div>
-        
-        <div class="model-stat">
-        <div class="model-stat-label">Probability Split</div>
-        <div class="model-stat-value">O {prob_over:.1%} / U {prob_under:.1%}</div>
-        </div>
-        </div>
-        
-        <div class="pick-banner" style="
-        background: {pick_bg};
-        color: {pick_text_color};
-        border: 2px solid {pick_border};
-        ">
-        {pick_text}
-        </div>
+        interpretation_text = (
+            "The model sees no meaningful edge either way, with the probability split essentially even."
+            if abs(prob_over - prob_under) <= 0.02
+            else f"The model projects a {prob_over:.0%} chance of the over hitting compared to {prob_under:.0%} for the under."
+        )
 
-        <div class="prob-interpretation" style="
-        margin-top: 12px;
-        padding: 10px 14px;
-        font-size: 1.2rem;
-        color: #cbd5e1;
-        opacity: 0.9;
-        ">
-        The model favors the <b>{'over' if prob_over > prob_under else 'under'}</b>, 
-        projecting <b>{max(prob_over, prob_under):.0%}</b> vs <b>{min(prob_over, prob_under):.0%}</b>.
-        </div>
-        
-        <div class="small-note">
-        Trained regression model output compared against the current sportsbook line.
-        </div>
-        
-        </div>
-        """,
-        unsafe_allow_html=True
+        st.markdown(
+f"""
+<div class="model-card" style="
+background: {model_bg};
+border: 3px solid {model_border};
+box-shadow:
+    0 0 0 1px {hex_to_rgba(secondary, 0.16)},
+    0 0 28px {model_glow},
+    0 0 50px {hex_to_rgba(primary, 0.18)};
+">
+
+<div class="model-title" style="color: {model_title_color};">
+    {selected_player}
+</div>
+<div class="model-subtitle">
+    Model Output
+</div>
+
+<div class="model-main">
+<div class="model-stat" style="background: {model_stat_bg}; border: 1px solid {model_stat_border};">
+<div class="model-stat-label" style="color: {model_label_color};">Predicted Points</div>
+<div class="model-stat-value">{predicted_points:.2f}</div>
+</div>
+
+<div class="model-stat" style="background: {model_stat_bg}; border: 1px solid {model_stat_border};">
+<div class="model-stat-label" style="color: {model_label_color};">Sportsbook Line</div>
+<div class="model-stat-value">{line:.1f}</div>
+</div>
+
+<div class="model-stat" style="background: {model_stat_bg}; border: 1px solid {model_stat_border};">
+<div class="model-stat-label" style="color: {model_label_color};">Model Edge</div>
+<div class="model-stat-value">{edge:+.2f}</div>
+</div>
+
+<div class="model-stat" style="background: {model_stat_bg}; border: 1px solid {model_stat_border};">
+<div class="model-stat-label" style="color: {model_label_color};">Probability Split</div>
+<div class="model-stat-value">O {prob_over:.1%} / U {prob_under:.1%}</div>
+</div>
+</div>
+
+<div class="prob-interpretation" style="
+margin-top: 8px;
+margin-bottom: 10px;
+padding: 8px 2px 0 2px;
+font-size: 0.98rem;
+color: #cbd5e1;
+opacity: 0.95;
+">
+{interpretation_text}
+</div>
+
+<div class="pick-banner" style="
+background: {pick_bg};
+color: {pick_text_color};
+border: 2px solid {pick_border};
+">
+{pick_text}
+</div>
+
+<div class="small-note">
+Trained regression model output compared against the current sportsbook line.
+</div>
+
+</div>
+""",
+unsafe_allow_html=True
         )
 
         recent_games = df.sort_values("GAME_DATE", ascending=False).head(5).copy()
@@ -930,3 +941,5 @@ else:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+still getting this. why is it not working?
