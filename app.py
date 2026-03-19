@@ -14,7 +14,7 @@ from datetime import datetime
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
 
-APP_VERSION = "v1.18 - Style changes"
+APP_VERSION = "v1.19 - Search box changes"
 
 
 st.set_page_config(
@@ -343,12 +343,20 @@ def load_model_stats():
     with open("models/points_model_stats.json", "r") as f:
         return json.load(f)
 
-
 @st.cache_data
 def load_active_players():
     active_players = players.get_active_players()
-    name_map = {p["full_name"]: p["id"] for p in active_players}
-    return active_players, name_map, sorted(name_map.keys())
+
+    actual_name_to_id = {p["full_name"]: p["id"] for p in active_players}
+
+    search_name_to_actual = {}
+    for actual_name in actual_name_to_id.keys():
+        search_name = normalize_name(actual_name).title()
+        search_name_to_actual[search_name] = actual_name
+
+    search_names = sorted(search_name_to_actual.keys())
+
+    return active_players, actual_name_to_id, search_name_to_actual, search_names
 
 
 def normalize_name(name: str) -> str:
@@ -566,7 +574,7 @@ def extract_player_prop(event_odds_json, selected_player):
 model = load_model()
 model_stats = load_model_stats()
 points_std = model_stats["std_dev"]
-_, player_name_map, player_names = load_active_players()
+_, player_name_map, search_name_to_actual, player_search_names = load_active_players()
 
 
 st.markdown("""
@@ -580,12 +588,14 @@ st.markdown(f'<div class="version-tag">App version {APP_VERSION}</div>', unsafe_
 
 st.caption("Search for a player by name")
 
-selected_player = st.selectbox(
+selected_search_name = st.selectbox(
     "Player",
-    options=player_names,
+    options=player_search_names,
     index=None,
     placeholder="Start typing a player name..."
 )
+
+selected_player = search_name_to_actual[selected_search_name] if selected_search_name else None
 
 selected_book = st.selectbox(
     "Sportsbook",
