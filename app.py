@@ -983,7 +983,7 @@ if selected_player:
 
         st.markdown(f"""
 <div class="section-card">
-    <div class="section-title">Recent Form</div>
+    <div class="section-title">Scoring Snapshotm</div>
     <div class="recent-grid">
         <div class="recent-box">
             <div class="recent-label">Season Avg PPG</div>
