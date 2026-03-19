@@ -14,7 +14,7 @@ from datetime import datetime
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
 
-APP_VERSION = "v1.12"
+APP_VERSION = "v1.13"
 
 
 st.set_page_config(
@@ -529,7 +529,6 @@ def extract_player_prop(event_odds_json, selected_player):
                         }
 
     return None
-
 
 model = load_model()
 model_stats = load_model_stats()
