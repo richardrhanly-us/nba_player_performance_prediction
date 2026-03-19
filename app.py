@@ -14,7 +14,7 @@ from datetime import datetime
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
 
-APP_VERSION = "v1.19 - Search box changes"
+APP_VERSION = "v1.2 - Empty box removal"
 
 
 st.set_page_config(
@@ -795,27 +795,31 @@ if selected_player:
 
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">Game Info</div>', unsafe_allow_html=True)
+        
         st.markdown(f"""
-        <div class="summary-strip">
-            <div class="summary-item">
-                <div class="summary-label">Status</div>
-                <div class="summary-value">{game_status}</div>
-            </div>
-            <div class="summary-item">
-                <div class="summary-label">Matchup</div>
-                <div class="summary-value">{matchup}</div>
-            </div>
-            <div class="summary-item">
-                <div class="summary-label">Date</div>
-                <div class="summary-value">{game_date}</div>
-            </div>
-            <div class="summary-item">
-                <div class="summary-label">Time</div>
-                <div class="summary-value">{game_time}</div>
+        <div class="section-card">
+            <div class="section-title">Game Info</div>
+            <div class="summary-strip">
+                <div class="summary-item">
+                    <div class="summary-label">Status</div>
+                    <div class="summary-value">{game_status}</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">Matchup</div>
+                    <div class="summary-value">{matchup}</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">Date</div>
+                    <div class="summary-value">{game_date}</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">Time</div>
+                    <div class="summary-value">{game_time}</div>
+                </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+
 
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown('<div class="section-title">Sportsbook Line</div>', unsafe_allow_html=True)
