@@ -14,7 +14,7 @@ from datetime import datetime
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
 
-APP_VERSION = "v1.13"
+APP_VERSION = "v1.14"
 
 
 st.set_page_config(
@@ -633,16 +633,22 @@ if selected_player:
             try:
                 events = fetch_upcoming_nba_events(odds_api_key)
                 event_id = find_matching_event_id(events, matchup)
-
+                st.write("DEBUG matchup:", matchup)
+                st.write("DEBUG normalized player:", normalize_name(selected_player))
+                st.write("DEBUG event_id:", event_id)
+        
                 if event_id:
                     event_odds = fetch_player_points_market(
                         odds_api_key,
                         event_id,
                         BOOKMAKER_MAP[selected_book]
                     )
-
+        
+                    st.write("DEBUG event_odds:", event_odds)
+        
                     prop = extract_player_prop(event_odds, selected_player)
-
+                    st.write("DEBUG prop:", prop)
+        
                     if prop:
                         sportsbook_line = prop["line"]
                         over_price = prop["over_price"]
@@ -650,6 +656,7 @@ if selected_player:
                         book_name = prop["bookmaker"]
                         book_updated = prop["last_update"]
                         line_source = "Sportsbook API"
+
             except Exception:
                 sportsbook_line = None
 
