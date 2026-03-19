@@ -812,8 +812,6 @@ if selected_player:
                 disabled=(sportsbook_line is not None and not manual_override)
             )
         
-        with col_toggle:
-            manual_override = st.checkbox("Manual line", value=False)
 
         if sportsbook_line is not None and not manual_override:
             line = sportsbook_line
