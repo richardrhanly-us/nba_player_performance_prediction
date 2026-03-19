@@ -14,7 +14,7 @@ from datetime import datetime
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
 
-APP_VERSION = "v1.22 - debug"
+APP_VERSION = "v1.23 - synced model features"
 
 
 st.set_page_config(
@@ -98,36 +98,6 @@ st.markdown("""
         font-size: 0.78rem;
         font-weight: 700;
         letter-spacing: 0.02em;
-    }
-
-    .control-panel {
-        background:
-            linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(17,24,39,0.96) 100%);
-        border: 1px solid rgba(255,255,255,0.07);
-        border-radius: 18px;
-        padding: 18px 18px 8px 18px;
-        margin-top: 8px;
-        margin-bottom: 16px;
-        box-shadow: 0 10px 28px rgba(0,0,0,0.22);
-    }
-
-    .control-title {
-        color: #f8fafc;
-        font-size: 1rem;
-        font-weight: 800;
-        margin-bottom: 4px;
-    }
-
-    .control-subtitle {
-        color: #94a3b8;
-        font-size: 0.88rem;
-        margin-bottom: 14px;
-    }
-
-    .top-divider {
-        height: 1px;
-        background: linear-gradient(90deg, rgba(125,211,252,0.0), rgba(125,211,252,0.35), rgba(125,211,252,0.0));
-        margin: 10px 0 16px 0;
     }
 
     .section-card {
@@ -280,23 +250,20 @@ st.markdown("""
         color: white !important;
     }
 
-    /* Base input */
     .stNumberInput input {
         background-color: #111827 !important;
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
         opacity: 1 !important;
     }
-    
-    /* Disabled input (THIS is your issue) */
+
     .stNumberInput input:disabled {
         background-color: #1f2937 !important;
         color: #e5e7eb !important;
         -webkit-text-fill-color: #e5e7eb !important;
         opacity: 1 !important;
     }
-    
-    /* Remove that washed-out look */
+
     .stNumberInput input[disabled] {
         opacity: 1 !important;
     }
@@ -851,13 +818,60 @@ if selected_player:
         )
 
         df["player_avg_pts"] = df["PTS"].shift(1).expanding().mean()
+        df["player_avg_pts_sq"] = df["player_avg_pts"] ** 2
+
+        df["last3_pts"] = df["PTS"].shift(1).rolling(3).mean()
         df["last5_pts"] = df["PTS"].shift(1).rolling(5).mean()
+        df["last10_pts"] = df["PTS"].shift(1).rolling(10).mean()
+        df["last20_pts"] = df["PTS"].shift(1).rolling(20).mean()
+
         df["last5_fga"] = df["FGA"].shift(1).rolling(5).mean()
         df["last5_fta"] = df["FTA"].shift(1).rolling(5).mean()
         df["last5_minutes"] = df["MIN"].shift(1).rolling(5).mean()
         df["last5_gmsc"] = df["gmsc"].shift(1).rolling(5).mean()
 
-        df_features = df.dropna().reset_index(drop=True)
+        df["home_game"] = df["MATCHUP"].str.contains("vs").astype(int)
+
+        df["days_rest"] = df["GAME_DATE"].diff().dt.days
+        df["days_rest"] = df["days_rest"].fillna(3)
+        df["is_back_to_back"] = (df["days_rest"] == 1).astype(int)
+
+        df["usage_proxy"] = df["FGA"] + 0.44 * df["FTA"] + df["TOV"]
+        df["last5_usage_proxy"] = df["usage_proxy"].shift(1).rolling(5).mean()
+
+        df["season_minutes_avg"] = df["MIN"].shift(1).expanding().mean()
+
+        df["minutes_volatility"] = df["MIN"].shift(1).rolling(5).std()
+        df["points_volatility"] = df["PTS"].shift(1).rolling(5).std()
+
+        if "FG3A" in df.columns:
+            df["FG3A"] = pd.to_numeric(df["FG3A"], errors="coerce")
+            df["last5_3pa"] = df["FG3A"].shift(1).rolling(5).mean()
+
+        required_features = [
+            "player_avg_pts",
+            "player_avg_pts_sq",
+            "season_minutes_avg",
+            "home_game",
+            "days_rest",
+            "is_back_to_back",
+            "last3_pts",
+            "last5_pts",
+            "last10_pts",
+            "last20_pts",
+            "last5_fga",
+            "last5_fta",
+            "last5_minutes",
+            "last5_gmsc",
+            "last5_usage_proxy",
+            "minutes_volatility",
+            "points_volatility"
+        ]
+
+        if "last5_3pa" in df.columns:
+            required_features.append("last5_3pa")
+
+        df_features = df.dropna(subset=required_features).reset_index(drop=True)
 
         if df_features.empty:
             st.warning("Not enough recent games to build features yet.")
@@ -865,14 +879,33 @@ if selected_player:
 
         latest = df_features.iloc[-1]
 
-        X = pd.DataFrame([{
+        feature_data = {
             "player_avg_pts": latest["player_avg_pts"],
+            "player_avg_pts_sq": latest["player_avg_pts_sq"],
+            "season_minutes_avg": latest["season_minutes_avg"],
+            "home_game": latest["home_game"],
+            "days_rest": latest["days_rest"],
+            "is_back_to_back": latest["is_back_to_back"],
+            "last3_pts": latest["last3_pts"],
             "last5_pts": latest["last5_pts"],
+            "last10_pts": latest["last10_pts"],
+            "last20_pts": latest["last20_pts"],
             "last5_fga": latest["last5_fga"],
             "last5_fta": latest["last5_fta"],
             "last5_minutes": latest["last5_minutes"],
-            "last5_gmsc": latest["last5_gmsc"]
-        }])
+            "last5_gmsc": latest["last5_gmsc"],
+            "last5_usage_proxy": latest["last5_usage_proxy"],
+            "minutes_volatility": latest["minutes_volatility"],
+            "points_volatility": latest["points_volatility"]
+        }
+
+        if "last5_3pa" in df_features.columns and pd.notna(latest.get("last5_3pa", None)):
+            feature_data["last5_3pa"] = latest["last5_3pa"]
+
+        X = pd.DataFrame([feature_data])
+
+        if hasattr(model, "feature_names_in_"):
+            X = X.reindex(columns=model.feature_names_in_, fill_value=0)
 
         predicted_points = float(model.predict(X)[0])
         edge = predicted_points - line
@@ -984,7 +1017,7 @@ if selected_player:
 
         st.markdown(f"""
 <div class="section-card">
-    <div class="section-title">Scoring Snapshotm</div>
+    <div class="section-title">Scoring Snapshot</div>
     <div class="recent-grid">
         <div class="recent-box">
             <div class="recent-label">Season Avg PPG</div>
