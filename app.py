@@ -668,7 +668,7 @@ _, player_name_map, search_name_to_actual, player_search_names = load_active_pla
 st.markdown(f"""
 <div class="hero">
     <div class="hero-title">NBA Points Prop Predictor</div>
-    <p class="hero-subtitle">Search a player, pull the latest line, and compare it to your model.</p>
+    <p class="hero-subtitle">Search a player, pull the latest line, and compare it to our model.</p>
     <div class="hero-pills">
         <div class="hero-pill">Live sportsbook lookup</div>
         <div class="hero-pill">Model vs line edge</div>
@@ -680,7 +680,7 @@ st.markdown(f"""
 
 
 selected_search_name = st.selectbox(
-    "Player",
+    "Search Player",
     options=player_search_names,
     index=None,
     placeholder="Start typing a player name..."
@@ -692,7 +692,7 @@ col_book, col_toggle = st.columns([2.2, 1.2])
 
 with col_book:
     selected_book = st.selectbox(
-        "Sportsbook",
+        "Search Sportsbook",
         options=list(BOOKMAKER_MAP.keys()),
         index=0
     )
