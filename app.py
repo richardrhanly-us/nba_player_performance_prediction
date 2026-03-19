@@ -7,6 +7,7 @@ import pandas as pd
 import streamlit as st
 import pytz
 import unicodedata
+import textwrap
 
 from scipy.stats import norm
 from datetime import datetime
@@ -899,16 +900,15 @@ if selected_player:
             else f"The model projects a {prob_over:.0%} chance of the over hitting compared to {prob_under:.0%} for the under."
         )
 
-        st.markdown(
-            f"""
-<div class="model-card" style="
-background: {model_bg};
-border: 3px solid {model_border};
-box-shadow:
-    0 0 0 1px {hex_to_rgba(secondary, 0.16)},
-    0 0 28px {model_glow},
-    0 0 50px {hex_to_rgba(primary, 0.18)};
-">
+st.markdown(textwrap.dedent(f"""
+    <div class="model-card" style="
+    background: {model_bg};
+    border: 3px solid {model_border};
+    box-shadow:
+        0 0 0 1px {hex_to_rgba(secondary, 0.16)},
+        0 0 28px {model_glow},
+        0 0 50px {hex_to_rgba(primary, 0.18)};
+    ">
     <div class="model-title" style="color: #ffffff;">
         {selected_player}
     </div>
@@ -940,20 +940,20 @@ box-shadow:
     </div>
 
     <div class="prob-interpretation" style="
-        margin-top: 8px;
-        margin-bottom: 10px;
-        padding: 8px 2px 0 2px;
-        font-size: 0.98rem;
-        color: #cbd5e1;
-        opacity: 0.95;
+    margin-top: 8px;
+    margin-bottom: 10px;
+    padding: 8px 2px 0 2px;
+    font-size: 0.98rem;
+    color: #cbd5e1;
+    opacity: 0.95;
     ">
         {interpretation_text}
     </div>
 
     <div class="pick-banner" style="
-        background: {pick_bg};
-        color: {pick_text_color};
-        border: 2px solid {pick_border};
+    background: {pick_bg};
+    color: {pick_text_color};
+    border: 2px solid {pick_border};
     ">
         {pick_text}
     </div>
@@ -961,10 +961,8 @@ box-shadow:
     <div class="small-note">
         Trained regression model output compared against the current sportsbook line.
     </div>
-</div>
-""",
-            unsafe_allow_html=True
-        )    
+    </div>
+"""), unsafe_allow_html=True)
 
         st.markdown(f"""
 <div class="section-card">
