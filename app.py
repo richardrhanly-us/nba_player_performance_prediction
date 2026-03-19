@@ -14,7 +14,7 @@ from datetime import datetime
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
 
-APP_VERSION = "v1.26 - model cache + feature sync fix"
+APP_VERSION = "v1.27 - No Bet"
 
 
 st.set_page_config(
@@ -465,12 +465,14 @@ def get_team_theme(team_abbr: str):
     return TEAM_THEMES.get(team_abbr, {"primary": "#38bdf8", "secondary": "#60a5fa"})
 
 
-def get_pick_label(prob_over, prob_under):
-    if abs(prob_over - prob_under) <= 0.02:
-        return "No Edge", "neutral"
-    if prob_over > prob_under:
-        return "Lean Over", "over"
-    return "Lean Under", "under"
+def get_pick_label(edge):
+    abs_edge = abs(edge)
+
+    if abs_edge < 1.5:
+        return "No Bet", "neutral"
+    if abs_edge < 3.0:
+        return ("Lean Over", "over") if edge > 0 else ("Lean Under", "under")
+    return ("Strong Over", "over") if edge > 0 else ("Strong Under", "under")
 
 
 def american_odds_text(price):
@@ -951,7 +953,7 @@ if selected_player:
 
         prob_over = 1 - norm.cdf(line, loc=predicted_points, scale=points_std)
         prob_under = 1 - prob_over
-        pick_text, pick_kind = get_pick_label(prob_over, prob_under)
+        pick_text, pick_kind = get_pick_label(edge)
 
         if pick_kind == "over":
             pick_bg = "rgba(34,197,94,0.25)"
@@ -966,11 +968,16 @@ if selected_player:
             pick_border = "#94a3b8"
             pick_text_color = "#e5e7eb"
 
-        interpretation_text = (
-            "The model sees no meaningful edge either way, with the probability split essentially even."
-            if abs(prob_over - prob_under) <= 0.02
-            else f"The model projects a {prob_over:.0%} chance of the over hitting compared to {prob_under:.0%} for the under."
-        )
+        if abs(edge) < 1.5:
+            interpretation_text = (
+                f"The model projects {predicted_points:.2f} points against a line of {line:.1f}, "
+                f"which is too close to call confidently."
+            )
+        else:
+            interpretation_text = (
+                f"The model projects a {prob_over:.0%} chance of the over hitting compared to "
+                f"{prob_under:.0%} for the under."
+            )
 
         model_html = "\n".join([
             f'<div class="model-card" style="background: {model_bg}; border: 3px solid {model_border}; box-shadow: 0 0 0 1px {hex_to_rgba(secondary, 0.16)}, 0 0 28px {model_glow}, 0 0 50px {hex_to_rgba(primary, 0.18)};">',
