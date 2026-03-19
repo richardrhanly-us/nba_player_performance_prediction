@@ -14,7 +14,7 @@ from datetime import datetime
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
 
-APP_VERSION = "v1.2 - Empty box removal"
+APP_VERSION = "v1.20 - section card cleanup"
 
 
 st.set_page_config(
@@ -114,15 +114,15 @@ st.markdown("""
         line-height: 1.2;
     }
 
-        .model-title {
-            font-size: 1.05rem;
-            font-weight: 900;
-            letter-spacing: 0.14em;
-            text-transform: uppercase;
-            margin-bottom: 16px;
-            color: white;
-            text-shadow: 0 0 6px rgba(255,255,255,0.25);
-        }
+    .model-title {
+        font-size: 1.05rem;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        margin-bottom: 16px;
+        color: white;
+        text-shadow: 0 0 6px rgba(255,255,255,0.25);
+    }
 
     .model-main {
         display: grid;
@@ -148,15 +148,15 @@ st.markdown("""
         font-weight: 900;
     }
 
-        .pick-banner {
-            margin-top: 16px;
-            border-radius: 14px;
-            padding: 14px 16px;
-            font-size: 1.05rem;
-            font-weight: 900;
-            text-align: center;
-            letter-spacing: 0.05em;
-        }
+    .pick-banner {
+        margin-top: 16px;
+        border-radius: 14px;
+        padding: 14px 16px;
+        font-size: 1.05rem;
+        font-weight: 900;
+        text-align: center;
+        letter-spacing: 0.05em;
+    }
 
     .small-note {
         color: #94a3b8;
@@ -250,7 +250,6 @@ st.markdown("""
         background-color: #111827 !important;
         color: white !important;
     }
-    
 </style>
 """, unsafe_allow_html=True)
 
@@ -343,21 +342,6 @@ def load_model_stats():
     with open("models/points_model_stats.json", "r") as f:
         return json.load(f)
 
-@st.cache_data
-def load_active_players():
-    active_players = players.get_active_players()
-
-    actual_name_to_id = {p["full_name"]: p["id"] for p in active_players}
-
-    search_name_to_actual = {}
-    for actual_name in actual_name_to_id.keys():
-        search_name = normalize_name(actual_name).title()
-        search_name_to_actual[search_name] = actual_name
-
-    search_names = sorted(search_name_to_actual.keys())
-
-    return active_players, actual_name_to_id, search_name_to_actual, search_names
-
 
 def normalize_name(name: str) -> str:
     if not name:
@@ -377,6 +361,22 @@ def normalize_name(name: str) -> str:
         .replace(" ii", "")
         .strip()
     )
+
+
+@st.cache_data
+def load_active_players():
+    active_players = players.get_active_players()
+
+    actual_name_to_id = {p["full_name"]: p["id"] for p in active_players}
+
+    search_name_to_actual = {}
+    for actual_name in actual_name_to_id.keys():
+        search_name = normalize_name(actual_name).title()
+        search_name_to_actual[search_name] = actual_name
+
+    search_names = sorted(search_name_to_actual.keys())
+
+    return active_players, actual_name_to_id, search_name_to_actual, search_names
 
 
 def hex_to_rgba(hex_color: str, alpha: float) -> str:
@@ -617,17 +617,16 @@ if selected_player:
 
         primary = team_theme["primary"]
         secondary = team_theme["secondary"]
-        
+
         model_bg = (
             f"linear-gradient(135deg, "
             f"{hex_to_rgba(primary, 0.35)} 0%, "
             f"{hex_to_rgba(secondary, 0.25)} 50%, "
             f"rgba(15, 23, 42, 0.95) 100%)"
         )
-        
+
         model_border = primary
         model_glow = hex_to_rgba(primary, 0.28)
-        model_title_color = secondary
         model_stat_bg = "rgba(255, 255, 255, 0.06)"
         model_stat_border = hex_to_rgba(secondary, 0.32)
         model_label_color = "#cbd5e1"
@@ -672,25 +671,25 @@ if selected_player:
         book_name = selected_book
         book_updated = None
         line_source = "Manual"
-        
+
         game_available_in_feed = False
-        
+
         if odds_api_key and matchup != "N/A":
             try:
                 events = fetch_upcoming_nba_events(odds_api_key)
                 event_id = find_matching_event_id(events, matchup)
-        
+
                 game_available_in_feed = event_id is not None
-        
+
                 if event_id:
                     event_odds = fetch_player_points_market(
                         odds_api_key,
                         event_id,
                         BOOKMAKER_MAP[selected_book]
                     )
-        
+
                     prop = extract_player_prop(event_odds, selected_player)
-        
+
                     if prop:
                         sportsbook_line = prop["line"]
                         over_price = prop["over_price"]
@@ -698,7 +697,7 @@ if selected_player:
                         book_name = prop["bookmaker"]
                         book_updated = prop["last_update"]
                         line_source = "Sportsbook API"
-        
+
             except Exception:
                 sportsbook_line = None
 
@@ -777,85 +776,81 @@ if selected_player:
         prob_over = 1 - norm.cdf(line, loc=predicted_points, scale=points_std)
         prob_under = 1 - prob_over
         pick_text, pick_kind = get_pick_label(prob_over, prob_under)
-        
+
         if pick_kind == "over":
-            pick_bg = "rgba(34,197,94,0.25)"   # green
+            pick_bg = "rgba(34,197,94,0.25)"
             pick_border = "#22c55e"
             pick_text_color = "#22c55e"
-        
         elif pick_kind == "under":
-            pick_bg = "rgba(239,68,68,0.25)"   # red
+            pick_bg = "rgba(239,68,68,0.25)"
             pick_border = "#ef4444"
             pick_text_color = "#ef4444"
-        
         else:
             pick_bg = "rgba(148,163,184,0.12)"
             pick_border = "#94a3b8"
             pick_text_color = "#e5e7eb"
 
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">Game Info</div>', unsafe_allow_html=True)
-        
         st.markdown(f"""
-        <div class="section-card">
-            <div class="section-title">Game Info</div>
-            <div class="summary-strip">
-                <div class="summary-item">
-                    <div class="summary-label">Status</div>
-                    <div class="summary-value">{game_status}</div>
-                </div>
-                <div class="summary-item">
-                    <div class="summary-label">Matchup</div>
-                    <div class="summary-value">{matchup}</div>
-                </div>
-                <div class="summary-item">
-                    <div class="summary-label">Date</div>
-                    <div class="summary-value">{game_date}</div>
-                </div>
-                <div class="summary-item">
-                    <div class="summary-label">Time</div>
-                    <div class="summary-value">{game_time}</div>
-                </div>
-            </div>
+<div class="section-card">
+    <div class="section-title">Game Info</div>
+    <div class="summary-strip">
+        <div class="summary-item">
+            <div class="summary-label">Status</div>
+            <div class="summary-value">{game_status}</div>
         </div>
-        """, unsafe_allow_html=True)
-
-
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">Sportsbook Line</div>', unsafe_allow_html=True)
+        <div class="summary-item">
+            <div class="summary-label">Matchup</div>
+            <div class="summary-value">{matchup}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">Date</div>
+            <div class="summary-value">{game_date}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">Time</div>
+            <div class="summary-value">{game_time}</div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
         update_text = book_updated if book_updated else "N/A"
 
-        st.markdown(f"""
-        <div class="summary-strip">
-            <div class="summary-item">
-                <div class="summary-label">Book</div>
-                <div class="summary-value">{book_name}</div>
-            </div>
-            <div class="summary-item">
-                <div class="summary-label">Source</div>
-                <div class="summary-value">{line_source}</div>
-            </div>
-            <div class="summary-item">
-                <div class="summary-label">Line</div>
-                <div class="summary-value">{line:.1f}</div>
-            </div>
-            <div class="summary-item">
-                <div class="summary-label">Prices</div>
-                <div class="summary-value">O {american_odds_text(over_price)} / U {american_odds_text(under_price)}</div>
-            </div>
-        </div>
-        <div class="small-note">Last update: {update_text}</div>
-        """, unsafe_allow_html=True)
-        
+        sportsbook_message = ""
         if not odds_api_key:
-            st.info("ODDS_API_KEY not found. Using manual line only.")
+            sportsbook_message = "ODDS_API_KEY not found. Using manual line only."
         elif matchup != "N/A" and not game_available_in_feed:
-            st.info("This game is not yet available in the sportsbook events feed. Using manual fallback.")
+            sportsbook_message = "This game is not yet available in the sportsbook events feed. Using manual fallback."
         elif sportsbook_line is None:
-            st.info("Game found, but no player points line was posted for this player/book yet. Using manual fallback.")
+            sportsbook_message = "Game found, but no player points line was posted for this player/book yet. Using manual fallback."
 
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown(f"""
+<div class="section-card">
+    <div class="section-title">Sportsbook Line</div>
+    <div class="summary-strip">
+        <div class="summary-item">
+            <div class="summary-label">Book</div>
+            <div class="summary-value">{book_name}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">Source</div>
+            <div class="summary-value">{line_source}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">Line</div>
+            <div class="summary-value">{line:.1f}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">Prices</div>
+            <div class="summary-value">O {american_odds_text(over_price)} / U {american_odds_text(under_price)}</div>
+        </div>
+    </div>
+    <div class="small-note">Last update: {update_text}</div>
+</div>
+""", unsafe_allow_html=True)
+
+        if sportsbook_message:
+            st.info(sportsbook_message)
 
         interpretation_text = (
             "The model sees no meaningful edge either way, with the probability split essentially even."
@@ -934,29 +929,29 @@ unsafe_allow_html=True
         recent_games = df.sort_values("GAME_DATE", ascending=False).head(5).copy()
         recent_games["GAME_DATE"] = recent_games["GAME_DATE"].dt.strftime("%Y-%m-%d")
 
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">Recent Form</div>', unsafe_allow_html=True)
-
         st.markdown(f"""
-        <div class="recent-grid">
-            <div class="recent-box">
-                <div class="recent-label">Avg Points</div>
-                <div class="recent-value">{latest["player_avg_pts"]:.2f}</div>
-            </div>
-            <div class="recent-box">
-                <div class="recent-label">Last 5 Points</div>
-                <div class="recent-value">{latest["last5_pts"]:.2f}</div>
-            </div>
-            <div class="recent-box">
-                <div class="recent-label">Last 5 Minutes</div>
-                <div class="recent-value">{latest["last5_minutes"]:.2f}</div>
-            </div>
-            <div class="recent-box">
-                <div class="recent-label">Last 5 GmSc</div>
-                <div class="recent-value">{latest["last5_gmsc"]:.2f}</div>
-            </div>
+<div class="section-card">
+    <div class="section-title">Recent Form</div>
+    <div class="recent-grid">
+        <div class="recent-box">
+            <div class="recent-label">Avg Points</div>
+            <div class="recent-value">{latest["player_avg_pts"]:.2f}</div>
         </div>
-        """, unsafe_allow_html=True)
+        <div class="recent-box">
+            <div class="recent-label">Last 5 Points</div>
+            <div class="recent-value">{latest["last5_pts"]:.2f}</div>
+        </div>
+        <div class="recent-box">
+            <div class="recent-label">Last 5 Minutes</div>
+            <div class="recent-value">{latest["last5_minutes"]:.2f}</div>
+        </div>
+        <div class="recent-box">
+            <div class="recent-label">Last 5 GmSc</div>
+            <div class="recent-value">{latest["last5_gmsc"]:.2f}</div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
         st.dataframe(
             recent_games[["GAME_DATE", "MATCHUP", "PTS", "MIN", "FGA", "FTA"]],
@@ -964,18 +959,15 @@ unsafe_allow_html=True
             hide_index=True
         )
 
-        st.markdown('</div>', unsafe_allow_html=True)
-
     except Exception as e:
         st.error(f"Something went wrong: {e}")
 
 else:
     st.markdown("""
-    <div class="section-card">
-        <div class="section-title">Get Started</div>
-        <div class="small-note">
-            Select a player to load game info, sportsbook line, and prediction.
-        </div>
+<div class="section-card">
+    <div class="section-title">Get Started</div>
+    <div class="small-note">
+        Select a player to load game info, sportsbook line, and prediction.
     </div>
-    """, unsafe_allow_html=True)
-
+</div>
+""", unsafe_allow_html=True)
