@@ -14,7 +14,7 @@ from datetime import datetime
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
 
-APP_VERSION = "v1.15-debug"
+APP_VERSION = "v1.16"
 
 
 st.set_page_config(
@@ -635,33 +635,25 @@ if selected_player:
         book_name = selected_book
         book_updated = None
         line_source = "Manual"
-
+        
+        game_available_in_feed = False
+        
         if odds_api_key and matchup != "N/A":
             try:
                 events = fetch_upcoming_nba_events(odds_api_key)
                 event_id = find_matching_event_id(events, matchup)
-
-                st.write("DEBUG matchup:", matchup)
-                st.write("DEBUG normalized player:", normalize_name(selected_player))
-                st.write("DEBUG event_id:", event_id)
-                st.write("DEBUG events count:", len(events))
-                st.write(
-                    "DEBUG events sample:",
-                    [(e.get("home_team"), e.get("away_team")) for e in events[:10]]
-                )
-
+        
+                game_available_in_feed = event_id is not None
+        
                 if event_id:
                     event_odds = fetch_player_points_market(
                         odds_api_key,
                         event_id,
                         BOOKMAKER_MAP[selected_book]
                     )
-
-                    st.write("DEBUG event_odds:", event_odds)
-
+        
                     prop = extract_player_prop(event_odds, selected_player)
-                    st.write("DEBUG prop:", prop)
-
+        
                     if prop:
                         sportsbook_line = prop["line"]
                         over_price = prop["over_price"]
@@ -669,8 +661,8 @@ if selected_player:
                         book_name = prop["bookmaker"]
                         book_updated = prop["last_update"]
                         line_source = "Sportsbook API"
-            except Exception as e:
-                st.write("DEBUG odds error:", str(e))
+        
+            except Exception:
                 sportsbook_line = None
 
         default_line = sportsbook_line if sportsbook_line is not None else 20.5
@@ -812,11 +804,13 @@ if selected_player:
         </div>
         <div class="small-note">Last update: {update_text}</div>
         """, unsafe_allow_html=True)
-
+        
         if not odds_api_key:
             st.info("ODDS_API_KEY not found. Using manual line only.")
+        elif matchup != "N/A" and not game_available_in_feed:
+            st.info("This game is not yet available in the sportsbook events feed. Using manual fallback.")
         elif sportsbook_line is None:
-            st.info("No player points line found for this player/book yet. Using manual fallback.")
+            st.info("Game found, but no player points line was posted for this player/book yet. Using manual fallback.")
 
         st.markdown('</div>', unsafe_allow_html=True)
 
