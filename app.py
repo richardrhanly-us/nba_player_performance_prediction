@@ -14,7 +14,7 @@ from datetime import datetime
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
 
-APP_VERSION = "v1.31 - Fix pick banner"
+APP_VERSION = "v1.32 - Fix pick banner"
 
 
 st.set_page_config(
@@ -609,6 +609,40 @@ def fetch_player_points_market(api_key, event_id, bookmaker_key):
     return resp.json()
 
 
+def ensure_lines_file():
+    file_path = "sportsbook_lines.csv"
+    if not os.path.exists(file_path):
+        pd.DataFrame(
+            columns=["PLAYER_NAME", "GAME_DATE", "sportsbook_line", "sportsbook", "last_update"]
+        ).to_csv(file_path, index=False)
+
+
+def append_sportsbook_line(player_name, game_date, sportsbook_line, sportsbook, last_update):
+    file_path = "sportsbook_lines.csv"
+    ensure_lines_file()
+
+    new_row = pd.DataFrame([{
+        "PLAYER_NAME": player_name,
+        "GAME_DATE": pd.to_datetime(game_date).strftime("%Y-%m-%d"),
+        "sportsbook_line": float(sportsbook_line),
+        "sportsbook": sportsbook,
+        "last_update": last_update if last_update else ""
+    }])
+
+    existing = pd.read_csv(file_path)
+    if not existing.empty:
+        existing.columns = existing.columns.str.strip()
+
+    combined = pd.concat([existing, new_row], ignore_index=True)
+    combined["GAME_DATE"] = pd.to_datetime(combined["GAME_DATE"], errors="coerce").dt.strftime("%Y-%m-%d")
+
+    combined = combined.drop_duplicates(
+        subset=["PLAYER_NAME", "GAME_DATE", "sportsbook"],
+        keep="last"
+    )
+
+    combined.to_csv(file_path, index=False)
+
 def extract_player_prop(event_odds_json, selected_player):
     target_name = normalize_name(selected_player)
 
@@ -775,6 +809,17 @@ if selected_player:
                         book_name = prop["bookmaker"]
                         book_updated = prop["last_update"]
                         line_source = "Sportsbook API"
+
+                        try:
+                            append_sportsbook_line(
+                                player_name=selected_player,
+                                game_date=game_date,
+                                sportsbook_line=sportsbook_line,
+                                sportsbook=book_name,
+                                last_update=book_updated
+                            )
+                        except Exception:
+                            pass
 
             except Exception:
                 sportsbook_line = None
