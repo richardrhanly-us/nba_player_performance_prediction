@@ -502,7 +502,7 @@ def get_gsheet():
     )
 
     client = gspread.authorize(creds)
-    sheet = client.open_by_key("YOUR_SHEET_ID").sheet1
+    sheet = client.open_by_key("1uhjV_Si-qcILfNJbKZrD52y4JnT_GvqQ0hzN7POekQM").sheet1
     return sheet
 
 
