@@ -14,7 +14,7 @@ from datetime import datetime
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
 
-APP_VERSION = "v1.29 - Fix pick banner"
+APP_VERSION = "v1.3 - Fix pick banner"
 
 
 st.set_page_config(
