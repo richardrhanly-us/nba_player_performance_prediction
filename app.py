@@ -502,7 +502,7 @@ def get_gsheet():
 try:
     sheet = get_gsheet()
     st.success("Google Sheets connected")
-    except Exception as e:
+        except Exception as e:
         st.error(f"Google Sheets connection failed: {e}")
 
 def append_to_sheet(player_name, game_date, line, sportsbook, last_update):
