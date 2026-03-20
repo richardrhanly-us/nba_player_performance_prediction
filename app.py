@@ -484,21 +484,23 @@ def load_active_players():
     return active_players, actual_name_to_id, search_name_to_actual, search_names
 
 
+import gspread
+from google.oauth2.service_account import Credentials
+
 def get_gsheet():
     scope = [
-        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
 
-    creds = ServiceAccountCredentials.from_json_keyfile_name(
-        "credentials.json",
-        scope
+    creds = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=scope
     )
 
     client = gspread.authorize(creds)
     sheet = client.open_by_key("1uhjV_Si-qcILfNJbKZrD52y4JnT_GvqQ0hzN7POekQM").sheet1
     return sheet
-
 
 try:
     sheet = get_gsheet()
