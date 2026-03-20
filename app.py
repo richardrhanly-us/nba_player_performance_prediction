@@ -487,6 +487,9 @@ def load_active_players():
 import gspread
 from google.oauth2.service_account import Credentials
 
+import gspread
+from google.oauth2.service_account import Credentials
+
 def get_gsheet():
     scope = [
         "https://www.googleapis.com/auth/spreadsheets",
@@ -499,29 +502,26 @@ def get_gsheet():
     )
 
     client = gspread.authorize(creds)
-    sheet = client.open_by_key("1uhjV_Si-qcILfNJbKZrD52y4JnT_GvqQ0hzN7POekQM").sheet1
+    sheet = client.open_by_key("YOUR_SHEET_ID").sheet1
     return sheet
+
+
+def append_to_sheet(player_name, game_date, line, sportsbook, last_update):
+    sheet = get_gsheet()
+    sheet.append_row([
+        player_name,
+        str(game_date),
+        float(line),
+        sportsbook,
+        last_update if last_update else ""
+    ])
+
 
 try:
     sheet = get_gsheet()
     st.success("Google Sheets connected")
 except Exception as e:
     st.error(f"Google Sheets connection failed: {e}")
-
-def append_to_sheet(player_name, game_date, line, sportsbook, last_update):
-    try:
-        sheet = get_gsheet()
-
-        sheet.append_row([
-            player_name,
-            str(game_date),
-            float(line),
-            sportsbook,
-            last_update if last_update else ""
-        ])
-
-    except Exception as e:
-        print("Sheet write failed:", e)
 
 def hex_to_rgba(hex_color: str, alpha: float) -> str:
     hex_color = hex_color.lstrip("#")
