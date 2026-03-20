@@ -55,11 +55,11 @@ The current points model is built on a **focused, high-signal feature set**:
 
 ### Performance
 
-- MAE: ~4.8  
-- RMSE: ~6.1  
-- R²: ~0.25  
+- MAE: ~4.9  
+- RMSE: ~6.3  
+- R²: ~0.50  
 
-This is considered a **solid baseline model** for NBA points prediction using public data.
+This is considered a solid baseline model for NBA points prediction using public data.
 
 ---
 
