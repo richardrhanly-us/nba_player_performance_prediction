@@ -516,13 +516,17 @@ def append_to_sheet(player_name, game_date, line, sportsbook, last_update):
         last_update if last_update else ""
     ])
 
-
 try:
-    sheet = get_gsheet()
-    st.success("Google Sheets connected")
-except Exception as e:
-    st.error(f"Google Sheets connection failed: {e}")
-
+    append_to_sheet(
+        player_name=selected_player,
+        game_date=game_date,
+        line=sportsbook_line,
+        sportsbook=book_name,
+        last_update=book_updated
+    )
+except Exception:
+    pass
+    
 def hex_to_rgba(hex_color: str, alpha: float) -> str:
     hex_color = hex_color.lstrip("#")
     if len(hex_color) != 6:
