@@ -52,7 +52,7 @@ def append_to_sheet(player_name, game_date, line, sportsbook, last_update, predi
         ""
     ])
 
-APP_VERSION = "v1.35 - Live Game Score"
+APP_VERSION = "v1.35 - Sheet update"
 
 
 st.set_page_config(
@@ -599,7 +599,81 @@ def get_final_points_from_gamelog(player_id, game_date):
 
     return int(match.iloc[0]["PTS"])
 
+def get_player_id_by_name(player_name):
+    try:
+        return player_name_map.get(player_name)
+    except Exception:
+        return None
 
+
+def update_all_pending_sheet_results():
+    records_df, sheet = get_sheet_records_df()
+
+    if records_df.empty:
+        return 0, 0
+
+    required_cols = [
+        "PLAYER_NAME", "GAME_DATE", "sportsbook", "sportsbook_line",
+        "predicted_points", "final_points", "line_result",
+        "model_pick", "model_result", "result_logged_at"
+    ]
+
+    for col in required_cols:
+        if col not in records_df.columns:
+            return 0, 0
+
+    updated_count = 0
+    checked_count = 0
+
+    headers = list(records_df.columns)
+    col_map = {name: i + 1 for i, name in enumerate(headers)}
+
+    for idx, row in records_df.iterrows():
+        final_points_existing = str(row["final_points"]).strip()
+        if final_points_existing:
+            continue
+
+        player_name = str(row["PLAYER_NAME"]).strip()
+        game_date = normalize_sheet_date(row["GAME_DATE"])
+        sportsbook = str(row["sportsbook"]).strip()
+
+        line_val = safe_float(row["sportsbook_line"])
+        predicted_val = safe_float(row["predicted_points"])
+
+        if not player_name or not game_date or line_val is None or predicted_val is None:
+            continue
+
+        player_id = get_player_id_by_name(player_name)
+        if not player_id:
+            continue
+
+        checked_count += 1
+
+        try:
+            final_points = get_final_points_from_gamelog(player_id, game_date)
+
+            if final_points is None:
+                continue
+
+            model_pick = "OVER" if predicted_val > line_val else "UNDER"
+            line_result = "OVER" if final_points > line_val else "UNDER"
+            model_result = "WIN" if model_pick == line_result else "LOSS"
+            logged_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            sheet_row_num = idx + 2
+
+            sheet.update_cell(sheet_row_num, col_map["final_points"], str(final_points))
+            sheet.update_cell(sheet_row_num, col_map["line_result"], line_result)
+            sheet.update_cell(sheet_row_num, col_map["model_pick"], model_pick)
+            sheet.update_cell(sheet_row_num, col_map["model_result"], model_result)
+            sheet.update_cell(sheet_row_num, col_map["result_logged_at"], logged_at)
+
+            updated_count += 1
+
+        except Exception as e:
+            print(f"Batch update failed for {player_name}: {e}")
+
+    return updated_count, checked_count
 def update_sheet_with_final_result(
     player_name,
     game_date,
