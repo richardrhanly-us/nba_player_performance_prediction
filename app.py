@@ -23,7 +23,6 @@ from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv
 import gspread
 from google.oauth2.service_account import Credentials
 
-APP_VERSION = "v1.34 - Output Pipeline"
 # Google Sheets setup
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
@@ -37,7 +36,7 @@ def get_gsheet():
     sheet = client.open("sportsbook_lines").sheet1
     return sheet
 
-def append_to_sheet(player_name, game_date, line, sportsbook, last_update, predicted_points=""):
+def append_to_sheet(player_name, game_date, line, sportsbook, last_update, predicted_points="", model_pick=""):
     sheet = get_gsheet()
     sheet.append_row([
         player_name,
@@ -48,122 +47,12 @@ def append_to_sheet(player_name, game_date, line, sportsbook, last_update, predi
         predicted_points,
         "",
         "",
-        "",
+        model_pick,
         "",
         ""
     ])
 
-def safe_float(value):
-    try:
-        return float(value)
-    except Exception:
-        return None
-
-
-def get_sheet_records_df():
-    sheet = get_gsheet()
-    values = sheet.get_all_values()
-
-    if not values or len(values) < 2:
-        return pd.DataFrame(), sheet
-
-    headers = values[0]
-    rows = values[1:]
-    df = pd.DataFrame(rows, columns=headers)
-    return df, sheet
-
-
-def normalize_sheet_date(value):
-    try:
-        return pd.to_datetime(value).strftime("%B %d, %Y")
-    except Exception:
-        return str(value).strip()
-
-
-def get_final_points_from_gamelog(player_id, game_date):
-    df = get_player_gamelog_df(player_id, CURRENT_SEASON).copy()
-
-    if df.empty:
-        return None
-
-    df["GAME_DATE_FMT"] = pd.to_datetime(df["GAME_DATE"], errors="coerce").dt.strftime("%B %d, %Y")
-    match = df[df["GAME_DATE_FMT"] == game_date]
-
-    if match.empty:
-        return None
-
-    return int(match.iloc[0]["PTS"])
-
-
-def update_sheet_with_final_result(
-    player_name,
-    game_date,
-    sportsbook,
-    predicted_points,
-    final_points
-):
-    records_df, sheet = get_sheet_records_df()
-
-    if records_df.empty:
-        return False
-
-    required_cols = [
-        "PLAYER_NAME", "GAME_DATE", "sportsbook", "sportsbook_line",
-        "predicted_points", "final_points", "line_result",
-        "model_pick", "model_result", "result_logged_at"
-    ]
-
-    for col in required_cols:
-        if col not in records_df.columns:
-            return False
-
-    target_idx = None
-
-    for idx, row in records_df.iterrows():
-        row_player = str(row["PLAYER_NAME"]).strip()
-        row_date = normalize_sheet_date(row["GAME_DATE"])
-        row_book = str(row["sportsbook"]).strip()
-        row_final_points = str(row["final_points"]).strip()
-
-        if (
-            row_player == player_name
-            and row_date == game_date
-            and row_book == sportsbook
-        ):
-            if row_final_points:
-                return True
-            target_idx = idx
-            break
-
-    if target_idx is None:
-        return False
-
-    row = records_df.iloc[target_idx]
-    line_val = safe_float(row["sportsbook_line"])
-
-    if line_val is None:
-        return False
-
-    model_pick = "OVER" if predicted_points > line_val else "UNDER"
-    line_result = "OVER" if final_points > line_val else "UNDER"
-    model_result = "WIN" if model_pick == line_result else "LOSS"
-    logged_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-
-    sheet_row_num = target_idx + 2
-
-    headers = list(records_df.columns)
-    col_map = {name: i + 1 for i, name in enumerate(headers)}
-
-    sheet.update_cell(sheet_row_num, col_map["predicted_points"], f"{predicted_points:.2f}")
-    sheet.update_cell(sheet_row_num, col_map["final_points"], str(final_points))
-    sheet.update_cell(sheet_row_num, col_map["line_result"], line_result)
-    sheet.update_cell(sheet_row_num, col_map["model_pick"], model_pick)
-    sheet.update_cell(sheet_row_num, col_map["model_result"], model_result)
-    sheet.update_cell(sheet_row_num, col_map["result_logged_at"], logged_at)
-
-    return True
-
-
+APP_VERSION = "v1.35 - Live Game Score"
 
 
 st.set_page_config(
@@ -642,14 +531,20 @@ def get_gsheet():
     return sheet
 
 
-def append_to_sheet(player_name, game_date, line, sportsbook, last_update):
+def append_to_sheet(player_name, game_date, line, sportsbook, last_update, predicted_points="", model_pick=""):
     sheet = get_gsheet()
     sheet.append_row([
         player_name,
         str(game_date),
         float(line),
         sportsbook,
-        last_update if last_update else ""
+        last_update if last_update else "",
+        predicted_points,
+        "",
+        "",
+        model_pick,
+        "",
+        ""
     ])
 
 try:
@@ -658,11 +553,120 @@ try:
         game_date=game_date,
         line=sportsbook_line,
         sportsbook=book_name,
-        last_update=book_updated,
-        predicted_points=""
+        last_update=book_updated
     )
 except Exception:
     pass
+
+def safe_float(value):
+    try:
+        return float(value)
+    except Exception:
+        return None
+
+
+def get_sheet_records_df():
+    sheet = get_gsheet()
+    values = sheet.get_all_values()
+
+    if not values or len(values) < 2:
+        return pd.DataFrame(), sheet
+
+    headers = values[0]
+    rows = values[1:]
+    df = pd.DataFrame(rows, columns=headers)
+    return df, sheet
+
+
+def normalize_sheet_date(value):
+    try:
+        return pd.to_datetime(value).strftime("%B %d, %Y")
+    except Exception:
+        return str(value).strip()
+
+
+def get_final_points_from_gamelog(player_id, game_date):
+    df = get_player_gamelog_df(player_id, CURRENT_SEASON).copy()
+
+    if df.empty:
+        return None
+
+    df["GAME_DATE_FMT"] = pd.to_datetime(df["GAME_DATE"], errors="coerce").dt.strftime("%B %d, %Y")
+    match = df[df["GAME_DATE_FMT"] == game_date]
+
+    if match.empty:
+        return None
+
+    return int(match.iloc[0]["PTS"])
+
+
+def update_sheet_with_final_result(
+    player_name,
+    game_date,
+    sportsbook,
+    predicted_points,
+    final_points
+):
+    records_df, sheet = get_sheet_records_df()
+
+    if records_df.empty:
+        return False
+
+    required_cols = [
+        "PLAYER_NAME", "GAME_DATE", "sportsbook", "sportsbook_line",
+        "predicted_points", "final_points", "line_result",
+        "model_pick", "model_result", "result_logged_at"
+    ]
+
+    for col in required_cols:
+        if col not in records_df.columns:
+            return False
+
+    target_idx = None
+
+    for idx, row in records_df.iterrows():
+        row_player = str(row["PLAYER_NAME"]).strip()
+        row_date = normalize_sheet_date(row["GAME_DATE"])
+        row_book = str(row["sportsbook"]).strip()
+        row_final_points = str(row["final_points"]).strip()
+
+        if (
+            row_player == player_name
+            and row_date == game_date
+            and row_book == sportsbook
+        ):
+            if row_final_points:
+                return True
+            target_idx = idx
+            break
+
+    if target_idx is None:
+        return False
+
+    row = records_df.iloc[target_idx]
+    line_val = safe_float(row["sportsbook_line"])
+
+    if line_val is None:
+        return False
+
+    model_pick = "OVER" if predicted_points > line_val else "UNDER"
+    line_result = "OVER" if final_points > line_val else "UNDER"
+    model_result = "WIN" if model_pick == line_result else "LOSS"
+    logged_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    sheet_row_num = target_idx + 2
+
+    headers = list(records_df.columns)
+    col_map = {name: i + 1 for i, name in enumerate(headers)}
+
+    sheet.update_cell(sheet_row_num, col_map["predicted_points"], f"{predicted_points:.2f}")
+    sheet.update_cell(sheet_row_num, col_map["final_points"], str(final_points))
+    sheet.update_cell(sheet_row_num, col_map["line_result"], line_result)
+    sheet.update_cell(sheet_row_num, col_map["model_pick"], model_pick)
+    sheet.update_cell(sheet_row_num, col_map["model_result"], model_result)
+    sheet.update_cell(sheet_row_num, col_map["result_logged_at"], logged_at)
+
+    return True
 
 def get_live_game_stats(game_id, team_abbr):
     try:
@@ -989,22 +993,15 @@ if selected_player:
 
         today_str = now_et.strftime("%m/%d/%Y")
         today_game_info = get_team_game_info(team_id, team_abbr, today_str)
-        
+
         live_points = None
         live_minutes = None
-        
+
         if today_game_info:
             matchup = today_game_info["matchup"]
             game_date = today_game_info["date"]
             game_time = today_game_info["time"]
             live_game_id = today_game_info.get("game_id")
-
-            live_status_text = str(game_time).lower()
-
-            is_live_game = (
-                any(marker in live_status_text for marker in ["qtr", "quarter", "ot", "halftime", "half"])
-                and "final" not in live_status_text
-            )
 
             live_status_text = str(game_time).lower()
 
@@ -1089,18 +1086,6 @@ if selected_player:
                         book_name = prop["bookmaker"]
                         book_updated = prop["last_update"]
                         line_source = "Sportsbook API"
-                    
-                        try:
-                            append_to_sheet(
-                                player_name=selected_player,
-                                game_date=game_date,
-                                line=sportsbook_line,
-                                sportsbook=book_name,
-                                last_update=book_updated
-                            )
-                        except Exception as e:
-                            print("Sheet write failed:", e)
-                        
 
             except Exception:
                 sportsbook_line = None
@@ -1120,18 +1105,18 @@ if selected_player:
                 step=0.5,
                 disabled=(sportsbook_line is not None and not manual_override)
             )
-        
+
         if sportsbook_line is not None and not manual_override:
             line = sportsbook_line
             line_source = "Sportsbook API"
-        
+
         elif manual_override:
             line_source = "Manual line"
-        
+
         else:
             line = None
             line_source = "No posted line"
-        
+
         has_real_line = sportsbook_line is not None
         using_manual_line = manual_override
         can_grade_edge = has_real_line or using_manual_line
@@ -1288,7 +1273,23 @@ if selected_player:
             X = X.reindex(columns=model.feature_names_in_, fill_value=0)
 
         predicted_points = float(model.predict(X)[0])
-        
+
+        model_pick_value = ""
+        if sportsbook_line is not None:
+            model_pick_value = "OVER" if predicted_points > sportsbook_line else "UNDER"
+            try:
+                append_to_sheet(
+                    player_name=selected_player,
+                    game_date=game_date,
+                    line=sportsbook_line,
+                    sportsbook=book_name,
+                    last_update=book_updated,
+                    predicted_points=f"{predicted_points:.2f}",
+                    model_pick=model_pick_value
+                )
+            except Exception as e:
+                print("Sheet write failed:", e)
+
         if can_grade_edge:
             edge = predicted_points - line
             prob_over = 1 - norm.cdf(line, loc=predicted_points, scale=points_std)
@@ -1313,7 +1314,7 @@ if selected_player:
             pick_bg = "rgba(148,163,184,0.12)"
             pick_border = "#94a3b8"
             pick_text_color = "#e5e7eb"
-        
+
         if not can_grade_edge:
             interpretation_text = ""
         elif abs(edge) < 1.5:
@@ -1339,9 +1340,10 @@ if selected_player:
                         predicted_points=predicted_points,
                         final_points=final_points
                     )
+
             except Exception as e:
                 print("Final result write failed:", e)
-        
+
         model_cards = [
             f'<div class="model-stat" style="background: {model_stat_bg}; border: 1px solid {model_stat_border};"><div class="model-stat-label" style="color: {model_label_color};">Predicted Points</div><div class="model-stat-value">{predicted_points:.2f}</div></div>'
         ]
