@@ -22,10 +22,14 @@ from src.shared_app import (
     get_player_info_df,
     build_player_feature_row,
     get_live_player_stats,
-    get_today_games,
     get_available_sportsbooks,
     get_player_points_lines,
 )
+
+try:
+    from src.shared_app import get_team_game_info
+except ImportError:
+    get_team_game_info = None
 
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -374,18 +378,17 @@ def safe_live_display(value, fallback="N/A"):
         return fallback
     return str(value)
 
+
 def format_minutes(minutes_str):
     if not minutes_str:
         return "0:00"
 
     try:
-        # Already clean
         if ":" in str(minutes_str):
-            return minutes_str
+            return str(minutes_str)
 
         m = 0
         s = 0
-
         text = str(minutes_str).replace("PT", "")
 
         if "M" in text:
@@ -398,9 +401,9 @@ def format_minutes(minutes_str):
             s = int(float(s_part)) if s_part else 0
 
         return f"{m}:{s:02d}"
-
     except Exception:
         return str(minutes_str)
+
 
 @st.cache_resource
 def get_gsheet_client():
@@ -492,16 +495,17 @@ def build_prediction(player_name, sportsbook_line):
         pass
 
     live_stats = None
-    team_info = None
     try:
         live_stats = get_live_player_stats(actual_name)
     except Exception:
         live_stats = None
 
-    try:
-        team_info = get_team_game_info(actual_name)
-    except Exception:
-        team_info = None
+    team_info = None
+    if get_team_game_info is not None:
+        try:
+            team_info = get_team_game_info(actual_name)
+        except Exception:
+            team_info = None
 
     player_info_df = None
     try:
@@ -548,7 +552,6 @@ st.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
-
 
 top_games_win_rate, top_games_total = get_strong_plays_summary()
 health = get_strong_plays_health()
@@ -608,12 +611,16 @@ try:
             pick = row.get("model_pick", "")
             matchup = f"{row.get('away_team', '')} @ {row.get('home_team', '')}"
 
+            line_text = f"{line_val:.1f}" if pd.notna(line_val) else "N/A"
+            pred_text = f"{pred_val:.2f}" if pd.notna(pred_val) else "N/A"
+            edge_text = f"{edge_val:+.2f}" if pd.notna(edge_val) else "N/A"
+
             st.markdown(
                 f"""
                 <div class="top-play-card">
-                    <div class="top-play-title">{player_name} — {pick} {line_val:.1f}</div>
+                    <div class="top-play-title">{player_name} — {pick} {line_text}</div>
                     <div class="top-play-sub">{matchup}</div>
-                    <div class="top-play-meta">Projection: {pred_val:.2f} | Edge: {edge_val:+.2f}</div>
+                    <div class="top-play-meta">Projection: {pred_text} | Edge: {edge_text}</div>
                 </div>
                 """,
                 unsafe_allow_html=True
@@ -655,10 +662,10 @@ except Exception as e:
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-
 st.markdown('<div class="section-card"><div class="section-title">Player Projection</div>', unsafe_allow_html=True)
 
-actual_name_to_id, player_names = get_player_lookup()
+_, player_names = get_player_lookup()
+
 selected_player = st.selectbox(
     "Search for a player",
     options=player_names,
@@ -667,7 +674,6 @@ selected_player = st.selectbox(
 )
 
 sportsbooks = get_available_sportsbooks()
-
 selected_book = st.selectbox(
     "Sportsbook",
     options=sportsbooks,
@@ -681,40 +687,30 @@ player_lines = None
 if selected_player and selected_book:
     try:
         player_lines = get_player_points_lines(selected_player, selected_book)
-
         if player_lines:
             live_line = player_lines.get("points_line")
-
     except Exception as e:
         st.warning(f"Could not load sportsbook line: {e}")
 
-if live_line is not None:
-    sportsbook_line = float(live_line)
-    st.caption(f"Loaded {selected_book} line: {sportsbook_line}")
-else:
-    sportsbook_line = st.number_input(
-        "Sportsbook points line",
-        min_value=0.0,
-        max_value=80.0,
-        value=25.5,
-        step=0.5
-    )
-    st.caption("No live sportsbook line found. Using manual input.")
-
-# --- Use live line if available ---
-default_line = float(live_line) if live_line is not None else 25.5
+manual_default = float(live_line) if live_line is not None else 25.5
 
 sportsbook_line = st.number_input(
     "Sportsbook points line",
     min_value=0.0,
     max_value=80.0,
-    value=default_line,
-    step=0.5
+    value=manual_default,
+    step=0.5,
+    key=f"sportsbook_line_{selected_player}_{selected_book}"
 )
+
+if live_line is not None:
+    st.caption(f"Loaded {selected_book} line: {float(live_line):.1f}")
+else:
+    st.caption("No live sportsbook line found. Using manual input.")
 
 if selected_player:
     with st.spinner("Building projection..."):
-        result = build_prediction(selected_player, sportsbook_line)
+        result = build_prediction(selected_player, float(sportsbook_line))
 
     if result.get("error"):
         st.error(result["error"])
@@ -765,7 +761,6 @@ if selected_player:
         if over_prob is not None and under_prob is not None:
             probability_text = f"O {over_prob * 100:.1f}% / U {under_prob * 100:.1f}%"
 
-        interpretation_text = ""
         if edge is None:
             interpretation_text = ""
         elif abs(edge) < 1.5:
@@ -774,10 +769,14 @@ if selected_player:
                 f"which is too close to call confidently."
             )
         else:
+            over_text = f"{over_prob:.0%}" if over_prob is not None else "N/A"
+            under_text = f"{under_prob:.0%}" if under_prob is not None else "N/A"
             interpretation_text = (
-                f"The model projects a {over_prob:.0%} chance of the over hitting compared to "
-                f"{under_prob:.0%} for the under."
+                f"The model projects a {over_text} chance of the over hitting compared to "
+                f"{under_text} for the under."
             )
+
+        edge_text = f"{edge:+.2f}" if edge is not None else "N/A"
 
         model_card_html = f"""
 <div class="model-card" style="background:{model_bg};border:2px solid {hex_to_rgba(model_border,0.95)};box-shadow:0 0 0 1px rgba(255,255,255,0.04),0 0 22px {model_glow};">
@@ -797,7 +796,7 @@ if selected_player:
 
 <div class="model-stat" style="background:{model_stat_bg};border:1px solid {model_stat_border};">
 <div class="model-stat-label" style="color:{model_label_color};">Model Edge</div>
-<div class="model-stat-value">{edge:+.2f}</div>
+<div class="model-stat-value">{edge_text}</div>
 </div>
 
 <div class="model-stat" style="background:{model_stat_bg};border:1px solid {model_stat_border};">
