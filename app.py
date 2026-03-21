@@ -572,7 +572,7 @@ def get_gsheet():
     client = gspread.authorize(creds)
     return client.open_by_key("1uhjV_Si-qcILfNJbKZrD52y4JnT_GvqQ0hzN7POekQM").sheet1
 
-st.caption(f"LOG DEBUG | player={selected_player} | line={sportsbook_line} | book={book_name} | date={game_date}")
+st.caption("append_to_sheet block reached")
 
 def append_to_sheet(player_name, game_date, line, sportsbook, last_update, predicted_points="", model_pick=""):
     sheet = get_gsheet()
