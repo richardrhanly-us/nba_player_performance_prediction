@@ -1240,7 +1240,7 @@ def get_top_plays_today_df(api_key, bookmaker_key, normalized_to_actual, actual_
     if props_df.empty:
         return pd.DataFrame()
 
-    props_df = props_df.head(20).copy()
+    props_df = props_df.head(15).copy()
 
     props_df["normalized_name"] = props_df["player_name_raw"].apply(normalize_name)
     props_df = props_df.drop_duplicates(subset=["normalized_name"]).copy()
