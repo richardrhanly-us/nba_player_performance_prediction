@@ -716,53 +716,53 @@ if selected_player:
                 f"{under_prob:.0%} for the under."
             )
 
-    st.markdown(
-    f"""<div class="model-card" style="
-    background: {model_bg};
-    border: 2px solid {hex_to_rgba(model_border, 0.95)};
-    box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 0 22px {model_glow};
-    ">
-    <div class="model-title">{result["actual_name"]}</div>
-    <div class="model-subtitle">Model Output</div>
-    
-    <div class="model-main">
-    <div class="model-stat" style="background:{model_stat_bg};border:1px solid {model_stat_border};">
-    <div class="model-stat-label" style="color:{model_label_color};">Predicted Points</div>
-    <div class="model-stat-value">{predicted_points:.2f}</div>
-    </div>
-    
-    <div class="model-stat" style="background:{model_stat_bg};border:1px solid {model_stat_border};">
-    <div class="model-stat-label" style="color:{model_label_color};">Sportsbook Line</div>
-    <div class="model-stat-value">{sportsbook_line:.1f}</div>
-    </div>
-    
-    <div class="model-stat" style="background:{model_stat_bg};border:1px solid {model_stat_border};">
-    <div class="model-stat-label" style="color:{model_label_color};">Model Edge</div>
-    <div class="model-stat-value">{edge:+.2f}</div>
-    </div>
-    
-    <div class="model-stat" style="background:{model_stat_bg};border:1px solid {model_stat_border};">
-    <div class="model-stat-label" style="color:{model_label_color};">Probability Split</div>
-    <div class="model-stat-value">{probability_text}</div>
-    </div>
-    </div>
-    
-    <div class="small-note">{interpretation_text}</div>
-    
-    <div class="pick-banner" style="
-    background:{pick_bg};
-    border:2px solid {pick_border};
-    color:{pick_text_color};
-    ">
-    {pick_text}
-    </div>
-    
-    <div class="small-note">
-    Trained regression model output compared against the current sportsbook line.
-    </div>
-    </div>""",
-    unsafe_allow_html=True
-    )
+        st.markdown(
+        f"""<div class="model-card" style="
+        background: {model_bg};
+        border: 2px solid {hex_to_rgba(model_border, 0.95)};
+        box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 0 22px {model_glow};
+        ">
+        <div class="model-title">{result["actual_name"]}</div>
+        <div class="model-subtitle">Model Output</div>
+        
+        <div class="model-main">
+        <div class="model-stat" style="background:{model_stat_bg};border:1px solid {model_stat_border};">
+        <div class="model-stat-label" style="color:{model_label_color};">Predicted Points</div>
+        <div class="model-stat-value">{predicted_points:.2f}</div>
+        </div>
+        
+        <div class="model-stat" style="background:{model_stat_bg};border:1px solid {model_stat_border};">
+        <div class="model-stat-label" style="color:{model_label_color};">Sportsbook Line</div>
+        <div class="model-stat-value">{sportsbook_line:.1f}</div>
+        </div>
+        
+        <div class="model-stat" style="background:{model_stat_bg};border:1px solid {model_stat_border};">
+        <div class="model-stat-label" style="color:{model_label_color};">Model Edge</div>
+        <div class="model-stat-value">{edge:+.2f}</div>
+        </div>
+        
+        <div class="model-stat" style="background:{model_stat_bg};border:1px solid {model_stat_border};">
+        <div class="model-stat-label" style="color:{model_label_color};">Probability Split</div>
+        <div class="model-stat-value">{probability_text}</div>
+        </div>
+        </div>
+        
+        <div class="small-note">{interpretation_text}</div>
+        
+        <div class="pick-banner" style="
+        background:{pick_bg};
+        border:2px solid {pick_border};
+        color:{pick_text_color};
+        ">
+        {pick_text}
+        </div>
+        
+        <div class="small-note">
+        Trained regression model output compared against the current sportsbook line.
+        </div>
+        </div>""",
+        unsafe_allow_html=True
+        )
 
         subcol1, subcol2, subcol3 = st.columns(3)
 
