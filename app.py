@@ -1198,7 +1198,7 @@ if selected_player:
                         live_minutes = live_player_stats["minutes"]
                     else:
                         st.warning(f"Live stats debug: {live_debug}")
-            st.caption(f"Debug game id: {live_game_id} | player id: {player_id} | player: {selected_player}")
+                st.caption(f"Debug game id: {live_game_id} | player id: {player_id} | player: {selected_player}")
 
 
             elif is_final_game:
