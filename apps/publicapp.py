@@ -651,8 +651,39 @@ try:
             "sportsbook": "Book",
         })
 
+        def edge_color(val):
+            if pd.isna(val):
+                return ""
+        
+            # strong green (best plays)
+            if val >= 6:
+                return "background-color: rgba(34,197,94,0.8); color: black;"
+        
+            # medium green
+            elif val >= 3:
+                return "background-color: rgba(34,197,94,0.4); color: white;"
+        
+            # neutral
+            elif val > -3:
+                return "background-color: rgba(148,163,184,0.15);"
+        
+            # light red
+            elif val > -6:
+                return "background-color: rgba(239,68,68,0.35); color: white;"
+        
+            # strong red
+            else:
+                return "background-color: rgba(239,68,68,0.75); color: white;"
+        
+        
+        styled_df = (
+            display_df.head(10)
+            .style
+            .applymap(edge_color, subset=["Edge"])
+        )
+        
         st.dataframe(
-            display_df.head(10),
+            styled_df,
             use_container_width=True,
             hide_index=True
         )
