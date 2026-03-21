@@ -689,7 +689,6 @@ if selected_player and selected_book:
         player_lines = get_player_points_lines(selected_player, selected_book)
         if player_lines:
             live_line = player_lines.get("points_line")
-            st.caption(f"DEBUG: player_lines = {player_lines}")
     except Exception as e:
         st.warning(f"Could not load sportsbook line: {e}")
 
