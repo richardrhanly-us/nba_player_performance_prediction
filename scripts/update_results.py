@@ -118,12 +118,16 @@ def update_all_pending_sheet_results():
 
         player_name = str(row["PLAYER_NAME"]).strip()
         game_date = normalize_sheet_date(row["GAME_DATE"])
+        
+        # skip today/future games BEFORE doing anything else
         if not is_past_game_date(game_date):
             continue
+        
+        # log only rows we are actually processing
+        print(f"Processing sheet row {idx + 2}: {player_name} | {game_date}", flush=True)
+        
         line_val = safe_float(row["sportsbook_line"])
         predicted_val = safe_float(row["predicted_points"])
-
-        print(f"Processing sheet row {idx + 2}: {player_name} | {game_date}", flush=True)
 
         if not player_name or not game_date or line_val is None or predicted_val is None:
             print("  Skipped: missing required values", flush=True)
