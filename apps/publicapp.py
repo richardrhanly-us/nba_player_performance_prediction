@@ -1,6 +1,5 @@
 import sys
 import os
-import json
 import pandas as pd
 import streamlit as st
 import gspread
@@ -29,7 +28,6 @@ from src.shared_app import (
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 SHEET_KEY = "1uhjV_Si-qcILfNJbKZrD52y4JnT_GvqQ0hzN7POekQM"
-
 
 TEAM_THEMES = {
     "ATL": {"primary": "#E03A3E", "secondary": "#C1D32F"},
@@ -61,16 +59,15 @@ TEAM_THEMES = {
     "SAS": {"primary": "#000000", "secondary": "#C4CED4"},
     "TOR": {"primary": "#CE1141", "secondary": "#000000"},
     "UTA": {"primary": "#002B5C", "secondary": "#F9A01B"},
-    "WAS": {"primary": "#002B5C", "secondary": "#E31837"}
+    "WAS": {"primary": "#002B5C", "secondary": "#E31837"},
 }
 
 
 st.set_page_config(
     page_title="NBA Edge Lab",
     page_icon="🏀",
-    layout="centered"
+    layout="centered",
 )
-
 
 st.markdown("""
 <style>
@@ -716,72 +713,65 @@ if selected_player:
                 f"{under_prob:.0%} for the under."
             )
 
-        st.markdown(f"""<div class="model-card" style="
-        background: {model_bg};
-        border: 2px solid {hex_to_rgba(model_border, 0.95)};
-        box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 0 22px {model_glow};
-        ">
-        <div class="model-title">{result["actual_name"]}</div>
-        <div class="model-subtitle">Model Output</div>
-        
-        <div class="model-main">
-        <div class="model-stat" style="background:{model_stat_bg};border:1px solid {model_stat_border};">
-        <div class="model-stat-label" style="color:{model_label_color};">Predicted Points</div>
-        <div class="model-stat-value">{predicted_points:.2f}</div>
-        </div>
-        
-        <div class="model-stat" style="background:{model_stat_bg};border:1px solid {model_stat_border};">
-        <div class="model-stat-label" style="color:{model_label_color};">Sportsbook Line</div>
-        <div class="model-stat-value">{sportsbook_line:.1f}</div>
-        </div>
-        
-        <div class="model-stat" style="background:{model_stat_bg};border:1px solid {model_stat_border};">
-        <div class="model-stat-label" style="color:{model_label_color};">Model Edge</div>
-        <div class="model-stat-value">{edge:+.2f}</div>
-        </div>
-        
-        <div class="model-stat" style="background:{model_stat_bg};border:1px solid {model_stat_border};">
-        <div class="model-stat-label" style="color:{model_label_color};">Probability Split</div>
-        <div class="model-stat-value">{probability_text}</div>
-        </div>
-        </div>
-        
-        <div class="small-note">{interpretation_text}</div>
-        
-        <div class="pick-banner" style="
-        background:{pick_bg};
-        border:2px solid {pick_border};
-        color:{pick_text_color};
-        ">
-        {pick_text}
-        </div>
-        
-        <div class="small-note">
-        Trained regression model output compared against the current sportsbook line.
-        </div>
-        </div>""",
-        unsafe_allow_html=True
-        )
+        model_card_html = f"""
+<div class="model-card" style="background:{model_bg};border:2px solid {hex_to_rgba(model_border,0.95)};box-shadow:0 0 0 1px rgba(255,255,255,0.04),0 0 22px {model_glow};">
+<div class="model-title">{result["actual_name"]}</div>
+<div class="model-subtitle">Model Output</div>
 
-subcol1, subcol2, subcol3 = st.columns(3)
+<div class="model-main">
+<div class="model-stat" style="background:{model_stat_bg};border:1px solid {model_stat_border};">
+<div class="model-stat-label" style="color:{model_label_color};">Predicted Points</div>
+<div class="model-stat-value">{predicted_points:.2f}</div>
+</div>
 
-with subcol1:
-    st.markdown(
-        f"""
-        <div class="mini-card">
-            <div class="mini-title">Season Avg</div>
-            <div class="mini-value">{'N/A' if season_avg is None else f'{season_avg:.2f}'}</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+<div class="model-stat" style="background:{model_stat_bg};border:1px solid {model_stat_border};">
+<div class="model-stat-label" style="color:{model_label_color};">Sportsbook Line</div>
+<div class="model-stat-value">{sportsbook_line:.1f}</div>
+</div>
+
+<div class="model-stat" style="background:{model_stat_bg};border:1px solid {model_stat_border};">
+<div class="model-stat-label" style="color:{model_label_color};">Model Edge</div>
+<div class="model-stat-value">{edge:+.2f}</div>
+</div>
+
+<div class="model-stat" style="background:{model_stat_bg};border:1px solid {model_stat_border};">
+<div class="model-stat-label" style="color:{model_label_color};">Probability Split</div>
+<div class="model-stat-value">{probability_text}</div>
+</div>
+</div>
+
+<div class="small-note">{interpretation_text}</div>
+
+<div class="pick-banner" style="background:{pick_bg};border:2px solid {pick_border};color:{pick_text_color};">
+{pick_text}
+</div>
+
+<div class="small-note">Trained regression model output compared against the current sportsbook line.</div>
+</div>
+"""
+        st.markdown(model_card_html, unsafe_allow_html=True)
+
+        subcol1, subcol2, subcol3 = st.columns(3)
+
+        with subcol1:
+            season_text = "N/A" if season_avg is None else f"{season_avg:.2f}"
+            st.markdown(
+                f"""
+                <div class="mini-card">
+                    <div class="mini-title">Season Avg</div>
+                    <div class="mini-value">{season_text}</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
         with subcol2:
+            last5_text = "N/A" if last5_avg is None else f"{last5_avg:.2f}"
             st.markdown(
                 f"""
                 <div class="mini-card">
                     <div class="mini-title">Last 5 Avg</div>
-                    <div class="mini-value">{'N/A' if last5_avg is None else f'{last5_avg:.2f}'}</div>
+                    <div class="mini-value">{last5_text}</div>
                 </div>
                 """,
                 unsafe_allow_html=True
