@@ -64,81 +64,6 @@ def get_live_player_stats(game_id, player_id):
         return None
 
 
-@st.cache_data(ttl=20)
-def get_live_player_stats(player_id):
-    try:
-        today = datetime.now().strftime("%m/%d/%Y")
-        team_info = get_player_team_info(player_id)
-        team_id = team_info["team_id"]
-
-        board = scoreboardv2.ScoreboardV2(game_date=today)
-        game_header_df = board.game_header.get_data_frame()
-        line_score_df = board.line_score.get_data_frame()
-
-        # Find today's game for the player's team
-        team_game_rows = line_score_df[line_score_df["TEAM_ID"] == team_id]
-        if team_game_rows.empty:
-            return None
-
-        game_id = team_game_rows.iloc[0]["GAME_ID"]
-
-        header_row = game_header_df[game_header_df["GAME_ID"] == game_id]
-        if header_row.empty:
-            return None
-
-        header_row = header_row.iloc[0]
-        game_status_id = int(header_row["GAME_STATUS_ID"])
-        game_status_text = str(header_row["GAME_STATUS_TEXT"])
-
-        # 1 = scheduled, 2 = live, 3 = final
-        if game_status_id != 2:
-            return {
-                "is_live": False,
-                "status_text": game_status_text
-            }
-
-        # Pull live box score
-        box = boxscoretraditionalv2.BoxScoreTraditionalV2(game_id=game_id)
-        player_stats_df = box.player_stats.get_data_frame()
-        team_stats_df = box.team_stats.get_data_frame()
-
-        player_row = player_stats_df[player_stats_df["PLAYER_ID"] == player_id]
-        if player_row.empty:
-            return {
-                "is_live": True,
-                "status_text": game_status_text,
-                "pts": 0,
-                "fgm": 0,
-                "fga": 0,
-                "minutes": "0",
-                "matchup_score": ""
-            }
-
-        player_row = player_row.iloc[0]
-
-        matchup_rows = line_score_df[line_score_df["GAME_ID"] == game_id]
-        if len(matchup_rows) == 2:
-            away = matchup_rows.iloc[0]
-            home = matchup_rows.iloc[1]
-            matchup_score = f"{away['TEAM_ABBREVIATION']} {away['PTS']} - {home['PTS']} {home['TEAM_ABBREVIATION']}"
-        else:
-            matchup_score = ""
-
-        return {
-            "is_live": True,
-            "status_text": game_status_text,   # example: Q2 07:36
-            "pts": int(player_row["PTS"]),
-            "fgm": int(player_row["FGM"]),
-            "fga": int(player_row["FGA"]),
-            "minutes": str(player_row["MIN"]),
-            "matchup_score": matchup_score
-        }
-
-    except Exception as e:
-        return {
-            "is_live": False,
-            "status_text": f"Live data unavailable: {e}"
-        }
 
 @st.cache_resource
 def get_gsheet():
@@ -691,16 +616,6 @@ def append_to_sheet(player_name, game_date, line, sportsbook, last_update, predi
         ""
     ])
 
-try:
-    append_to_sheet(
-        player_name=selected_player,
-        game_date=game_date,
-        line=sportsbook_line,
-        sportsbook=book_name,
-        last_update=book_updated
-    )
-except Exception:
-    pass
 
 def safe_float(value):
     try:
