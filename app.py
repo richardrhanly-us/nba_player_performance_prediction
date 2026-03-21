@@ -644,16 +644,16 @@ def get_player_info_df(player_id):
     except Exception:
         return None
 
-
+@st.cache_data(ttl=3600)
 def get_player_gamelog_df(player_id, season):
     try:
         return run_with_retry(
             lambda: playergamelog.PlayerGameLog(
                 player_id=player_id,
                 season=season,
-                timeout=20
+                timeout=10
             ).get_data_frames()[0],
-            retries=2,
+            retries=1,
             delay=1.5
         )
     except Exception:
@@ -1240,7 +1240,7 @@ def get_top_plays_today_df(api_key, bookmaker_key, normalized_to_actual, actual_
     if props_df.empty:
         return pd.DataFrame()
 
-    props_df = props_df.head(25).copy()
+    props_df = props_df.head(20).copy()
 
     props_df["normalized_name"] = props_df["player_name_raw"].apply(normalize_name)
     props_df = props_df.drop_duplicates(subset=["normalized_name"]).copy()
