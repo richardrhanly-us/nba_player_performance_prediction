@@ -261,6 +261,62 @@ st.markdown("""
         line-height: 1.2;
     }
 
+    .sportsbook-compact {
+    background: rgba(15, 23, 42, 0.78);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    padding: 10px 12px;
+    margin-top: 8px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.14);
+    }
+    
+    .sportsbook-compact-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+    }
+    
+    .sportsbook-compact-item {
+        background: rgba(15, 23, 42, 0.65);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 10px;
+        padding: 8px 10px;
+    }
+    
+    .sportsbook-compact-label {
+        color: #94a3b8;
+        font-size: 0.66rem;
+        margin-bottom: 3px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    
+    .sportsbook-compact-value {
+        color: #f8fafc;
+        font-size: 0.92rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+    
+    .sportsbook-compact-note {
+        color: #94a3b8;
+        font-size: 0.76rem;
+        margin-top: 8px;
+    }
+    
+    @media (max-width: 900px) {
+        .sportsbook-compact-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+    
+    @media (max-width: 640px) {
+        .sportsbook-compact-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
     .model-card {
         border-radius: 18px;
         padding: 18px 18px 14px 18px;
@@ -1340,6 +1396,42 @@ if selected_player:
             line = None
             line_source = "No posted line"
 
+            update_text = book_updated if book_updated else "N/A"
+            
+            st.markdown(f"""
+            <div class="sportsbook-compact">
+                <div class="sportsbook-compact-grid">
+                    
+                    <div class="sportsbook-compact-item">
+                        <div class="sportsbook-compact-label">Book</div>
+                        <div class="sportsbook-compact-value">{book_name}</div>
+                    </div>
+            
+                    <div class="sportsbook-compact-item">
+                        <div class="sportsbook-compact-label">Line</div>
+                        <div class="sportsbook-compact-value">{f"{line:.1f}" if line is not None else "N/A"}</div>
+                    </div>
+            
+                    <div class="sportsbook-compact-item">
+                        <div class="sportsbook-compact-label">Prices</div>
+                        <div class="sportsbook-compact-value">
+                            O {american_odds_text(over_price)} / U {american_odds_text(under_price)}
+                        </div>
+                    </div>
+            
+                    <div class="sportsbook-compact-item">
+                        <div class="sportsbook-compact-label">Source</div>
+                        <div class="sportsbook-compact-value">{line_source}</div>
+                    </div>
+            
+                </div>
+            
+                <div class="sportsbook-compact-note">
+                    Last update: {update_text}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
         has_real_line = sportsbook_line is not None
         using_manual_line = manual_override
         can_grade_edge = has_real_line or using_manual_line
@@ -1651,30 +1743,7 @@ if selected_player:
         elif sportsbook_line is None:
             sportsbook_message = "Game found, but no player points line is posted for this player/book yet."
 
-        st.markdown(f"""
-<div class="section-card">
-    <div class="section-title">Sportsbook Line</div>
-    <div class="summary-strip">
-        <div class="summary-item">
-            <div class="summary-label">Book</div>
-            <div class="summary-value">{book_name}</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-label">Source</div>
-            <div class="summary-value">{line_source}</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-label">Line</div>
-            <div class="summary-value">{f"{line:.1f}" if line is not None else "N/A"}</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-label">Prices</div>
-            <div class="summary-value">O {american_odds_text(over_price)} / U {american_odds_text(under_price)}</div>
-        </div>
-    </div>
-    <div class="small-note">Last update: {update_text}</div>
-</div>
-""", unsafe_allow_html=True)
+        
 
         if sportsbook_message:
             st.info(sportsbook_message)
