@@ -231,6 +231,12 @@ st.markdown("""
         gap: 10px;
     }
 
+    .summary-strip-live {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+
     .summary-item {
         background: #0f172a;
         border: 1px solid rgba(255,255,255,0.05);
@@ -472,6 +478,13 @@ st.markdown("""
         -webkit-text-fill-color: #f8fafc !important;
         opacity: 1 !important;
         border: 1px solid rgba(255,255,255,0.10) !important;
+    }
+
+    .summary-strip-live {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 220px));
+        justify-content: center;
+        gap: 10px;
     }
     
 </style>
@@ -1574,7 +1587,7 @@ if selected_player:
         
         if live_points is not None:
             game_info_html += f"""
-        <div class="summary-strip" style="margin-top: 14px;">
+        <div class="summary-strip-live" style="margin-top: 14px;">
         <div class="summary-item">
         <div class="summary-label">Live Points</div>
         <div class="summary-value">{live_points}</div>
@@ -1582,11 +1595,6 @@ if selected_player:
         <div class="summary-item">
         <div class="summary-label">FGM / FGA</div>
         <div class="summary-value">{live_fgm} / {live_fga}</div>
-        </div>
-        <div class="summary-item">
-        <div class="summary-label">Minutes Played</div>
-        <div class="summary-value">{live_minutes}</div>
-        </div>
         </div>
         """
         
