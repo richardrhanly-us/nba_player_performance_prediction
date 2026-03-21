@@ -1240,12 +1240,20 @@ def get_top_plays_today_df(api_key, bookmaker_key, normalized_to_actual, actual_
     if props_df.empty:
         return pd.DataFrame()
 
+    props_df = props_df.head(25).copy()
+
+    props_df["normalized_name"] = props_df["player_name_raw"].apply(normalize_name)
+    props_df = props_df.drop_duplicates(subset=["normalized_name"]).copy()
+
     rows = []
 
-    for _, row in props_df.iterrows():
-        raw_name = row["player_name_raw"]
-        normalized = normalize_name(raw_name)
-        actual_name = normalized_to_actual.get(normalized)
+    progress = st.progress(0)
+    status = st.empty()
+    total_rows = len(props_df)
+    
+    for i, (_, row) in enumerate(props_df.iterrows(), start=1):
+    status.text(f"Scoring top plays... {i}/{total_rows}")
+    progress.progress(i / total_rows)
 
         if not actual_name:
             continue
@@ -1295,6 +1303,9 @@ def get_top_plays_today_df(api_key, bookmaker_key, normalized_to_actual, actual_
     top_df["Abs Edge"] = top_df["Edge"].abs()
     top_df = top_df.sort_values(["Abs Edge", "Over %", "Under %"], ascending=[False, False, False]).reset_index(drop=True)
     return top_df
+
+    status.empty()
+    progress.empty()
 
 
 model = load_model(get_model_mtime())
