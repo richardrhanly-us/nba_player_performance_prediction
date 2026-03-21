@@ -1238,6 +1238,12 @@ selected_search_name = st.selectbox(
     placeholder="Start typing a player name..."
 )
 
+st.caption(f"Debug selected_search_name={selected_search_name}")
+
+selected_player = search_name_to_actual.get(selected_search_name) if selected_search_name else None
+
+st.caption(f"Debug selected_player={selected_player}")
+
 selected_player = search_name_to_actual[selected_search_name] if selected_search_name else None
 
 selected_book = st.selectbox(
