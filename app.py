@@ -1087,39 +1087,39 @@ if not selected_player:
 try:
     player_id = player_name_map[selected_player]
 
-        sportsbook_line = None
-        over_price = None
-        under_price = None
-        book_name = selected_book
-        book_updated = None
-        line_source = "Manual"
-        game_available_in_feed = False
+    sportsbook_line = None
+    over_price = None
+    under_price = None
+    book_name = selected_book
+    book_updated = None
+    line_source = "Manual"
+    game_available_in_feed = False
 
-        update_text = book_updated if book_updated else "N/A"
+    update_text = book_updated if book_updated else "N/A"
 
-        st.markdown(f"""
-    <div class="sportsbook-compact">
-        <div class="sportsbook-compact-grid">
-            <div class="sportsbook-compact-item">
-                <div class="sportsbook-compact-label">Line</div>
-                <div class="sportsbook-compact-value">{f"{sportsbook_line:.1f}" if sportsbook_line is not None else "N/A"}</div>
-            </div>
-            <div class="sportsbook-compact-item">
-                <div class="sportsbook-compact-label">Prices</div>
-                <div class="sportsbook-compact-value">O {american_odds_text(over_price)} / U {american_odds_text(under_price)}</div>
-            </div>
-            <div class="sportsbook-compact-item">
-                <div class="sportsbook-compact-label">Book</div>
-                <div class="sportsbook-compact-value">{book_name}</div>
-            </div>
-            <div class="sportsbook-compact-item">
-                <div class="sportsbook-compact-label">Source</div>
-                <div class="sportsbook-compact-value">{line_source}</div>
-            </div>
+    st.markdown(f"""
+<div class="sportsbook-compact">
+    <div class="sportsbook-compact-grid">
+        <div class="sportsbook-compact-item">
+            <div class="sportsbook-compact-label">Line</div>
+            <div class="sportsbook-compact-value">{f"{sportsbook_line:.1f}" if sportsbook_line is not None else "N/A"}</div>
         </div>
-        <div class="sportsbook-compact-note">Last update: {update_text}</div>
+        <div class="sportsbook-compact-item">
+            <div class="sportsbook-compact-label">Prices</div>
+            <div class="sportsbook-compact-value">O {american_odds_text(over_price)} / U {american_odds_text(under_price)}</div>
+        </div>
+        <div class="sportsbook-compact-item">
+            <div class="sportsbook-compact-label">Book</div>
+            <div class="sportsbook-compact-value">{book_name}</div>
+        </div>
+        <div class="sportsbook-compact-item">
+            <div class="sportsbook-compact-label">Source</div>
+            <div class="sportsbook-compact-value">{line_source}</div>
+        </div>
     </div>
-    """, unsafe_allow_html=True)
+    <div class="sportsbook-compact-note">Last update: {update_text}</div>
+</div>
+""", unsafe_allow_html=True)
 
     player_info = get_player_info_df(player_id)
     
