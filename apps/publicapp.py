@@ -22,6 +22,9 @@ from src.shared_app import (
     get_player_info_df,
     build_player_feature_row,
     get_live_player_stats,
+    get_today_games,
+    get_available_sportsbooks,
+    get_player_points_lines,
 )
 
 
@@ -664,11 +667,37 @@ selected_player = st.selectbox(
     placeholder="Start typing a player name..."
 )
 
+# --- NEW: Sportsbook selector ---
+sportsbooks = get_available_sportsbooks()
+
+selected_book = st.selectbox(
+    "Sportsbook",
+    options=sportsbooks,
+    index=0 if sportsbooks else None,
+    placeholder="Choose a sportsbook..."
+)
+
+# ---  Pull live line ---
+live_line = None
+
+if selected_player and selected_book:
+    try:
+        player_lines = get_player_points_lines(selected_player, selected_book)
+
+        if player_lines:
+            live_line = player_lines.get("points_line")
+
+    except Exception as e:
+        st.warning(f"Could not load sportsbook line: {e}")
+
+# --- Use live line if available ---
+default_line = float(live_line) if live_line is not None else 25.5
+
 sportsbook_line = st.number_input(
     "Sportsbook points line",
     min_value=0.0,
     max_value=80.0,
-    value=25.5,
+    value=default_line,
     step=0.5
 )
 
