@@ -100,13 +100,19 @@ def fetch_all_today_player_props(api_key, bookmaker_key):
         if not event_id:
             continue
 
-        print(f"Reading event {event_idx}/{len(events)}: {event.get('away_team', '')} @ {event.get('home_team', '')}", flush=True)
+        print(
+            f"Reading event {event_idx}/{len(events)}: "
+            f"{event.get('away_team', '')} @ {event.get('home_team', '')}",
+            flush=True
+        )
 
         try:
             event_odds = fetch_player_points_market(api_key, event_id, bookmaker_key)
         except Exception as e:
             print(f"  Skipped event odds fetch: {e}", flush=True)
             continue
+
+        time.sleep(0.3)
 
         home_team = event.get("home_team", "")
         away_team = event.get("away_team", "")
@@ -161,7 +167,10 @@ def fetch_all_today_player_props(api_key, bookmaker_key):
         return pd.DataFrame()
 
     df = pd.DataFrame(rows)
-    df = df.drop_duplicates(subset=["player_name_raw", "line", "bookmaker"]).reset_index(drop=True)
+    df = df.drop_duplicates(
+        subset=["player_name_raw", "line", "bookmaker"]
+    ).reset_index(drop=True)
+
     print(f"Qualified prop rows collected before model scoring: {len(df)}", flush=True)
     return df
 
@@ -181,8 +190,10 @@ def load_active_players():
     active_players = players.get_active_players()
     actual_name_to_id = {p["full_name"]: p["id"] for p in active_players}
     normalized_to_actual = {}
+
     for actual_name in actual_name_to_id.keys():
         normalized_to_actual[normalize_name(actual_name)] = actual_name
+
     print(f"Active players mapped: {len(actual_name_to_id)}", flush=True)
     return actual_name_to_id, normalized_to_actual
 
@@ -372,8 +383,6 @@ def main():
 
     print(f"Props found for scoring: {len(props_df)}", flush=True)
 
-    
-    
     records_df, sheet = get_sheet_records_df()
     logged_count = 0
     total_props = len(props_df)
@@ -382,7 +391,11 @@ def main():
     retry_rows = []
 
     for i, (_, row) in enumerate(props_df.iterrows(), start=1):
-        print(f"Evaluating prop {i}/{total_props}: {row['player_name_raw']} | {row['bookmaker']} | {row['line']}", flush=True)
+        print(
+            f"Evaluating prop {i}/{total_props}: "
+            f"{row['player_name_raw']} | {row['bookmaker']} | {row['line']}",
+            flush=True
+        )
 
         normalized = normalize_name(row["player_name_raw"])
         actual_name = normalized_to_actual.get(normalized)
@@ -392,11 +405,10 @@ def main():
             continue
 
         player_id = actual_name_to_id.get(actual_name)
-
         if not player_id:
             print("  Skipped: no player id found", flush=True)
             continue
-        
+
         if player_id in gamelog_cache:
             df = gamelog_cache[player_id]
             print(f"  Using cached gamelog for {actual_name}", flush=True)
@@ -405,22 +417,21 @@ def main():
             df = get_player_gamelog_df(player_id, CURRENT_SEASON)
             if not df.empty:
                 gamelog_cache[player_id] = df
-        
+
         if df.empty:
             print("  Queued for retry: gamelog unavailable", flush=True)
             retry_rows.append(row.to_dict())
             continue
-        
+
         X = build_player_feature_row(df, actual_name)
         if X is None or X.empty:
             print("  Skipped: not enough games to build features", flush=True)
             continue
-        
+
         if model_feature_names:
             X = X.reindex(columns=model_feature_names, fill_value=0)
-        
+
         predicted_points = float(model.predict(X)[0])
-        
         line = safe_float(row["line"])
         if line is None:
             print("  Skipped: invalid line", flush=True)
@@ -453,64 +464,64 @@ def main():
         print(f"  Logged: {actual_name} | {row['bookmaker']} | {line} | edge={edge:.2f}", flush=True)
         time.sleep(0.5)
 
-
     if retry_rows:
         print(f"Starting retry pass for {len(retry_rows)} queued props...", flush=True)
         time.sleep(3)
-    
+
         for j, row_dict in enumerate(retry_rows, start=1):
             print(
-                f"Retrying prop {j}/{len(retry_rows)}: {row_dict['player_name_raw']} | {row_dict['bookmaker']} | {row_dict['line']}",
+                f"Retrying prop {j}/{len(retry_rows)}: "
+                f"{row_dict['player_name_raw']} | {row_dict['bookmaker']} | {row_dict['line']}",
                 flush=True
             )
-    
+
             normalized = normalize_name(row_dict["player_name_raw"])
             actual_name = normalized_to_actual.get(normalized)
-    
+
             if not actual_name:
                 print("  Retry skipped: no active player match", flush=True)
                 continue
-    
+
             player_id = actual_name_to_id.get(actual_name)
             if not player_id:
                 print("  Retry skipped: no player id found", flush=True)
                 continue
-    
+
             print(f"  Retrying gamelog for {actual_name}", flush=True)
             df = get_player_gamelog_df(player_id, CURRENT_SEASON)
-    
+
             if df.empty:
                 print("  Retry failed: gamelog still unavailable", flush=True)
                 continue
-    
+
             gamelog_cache[player_id] = df
-    
+
             X = build_player_feature_row(df, actual_name)
             if X is None or X.empty:
                 print("  Retry skipped: not enough games to build features", flush=True)
                 continue
-    
+
             if model_feature_names:
                 X = X.reindex(columns=model_feature_names, fill_value=0)
-    
+
             predicted_points = float(model.predict(X)[0])
             line = safe_float(row_dict["line"])
             if line is None:
                 print("  Retry skipped: invalid line", flush=True)
                 continue
-    
+
             edge = predicted_points - line
             if abs(edge) < EDGE_THRESHOLD:
                 print(f"  Retry skipped: edge {edge:.2f} below threshold {EDGE_THRESHOLD}", flush=True)
                 continue
-    
+
             model_pick = "OVER" if predicted_points > line else "UNDER"
             game_date = format_event_game_date(row_dict["commence_time"])
-    
+
             if already_logged(records_df, actual_name, game_date, row_dict["bookmaker"], line):
                 print("  Retry skipped: already logged", flush=True)
                 continue
-    
+
             append_to_sheet(
                 sheet=sheet,
                 player_name=actual_name,
@@ -521,11 +532,14 @@ def main():
                 predicted_points=predicted_points,
                 model_pick=model_pick
             )
-    
+
             logged_count += 1
-            print(f"  Retry logged: {actual_name} | {row_dict['bookmaker']} | {line} | edge={edge:.2f}", flush=True)
+            print(
+                f"  Retry logged: {actual_name} | {row_dict['bookmaker']} | {line} | edge={edge:.2f}",
+                flush=True
+            )
             time.sleep(0.5)
-    
+
     print(f"Done. Logged {logged_count} top plays.", flush=True)
 
 
