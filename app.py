@@ -1395,7 +1395,7 @@ if odds_api_key:
             )
 
         if not top_plays_df.empty:
-        st.markdown("### 🔥 Top 3 Plays")
+            st.markdown("### 🔥 Top 3 Plays")
             
             top3 = top_plays_df.head(3)
             
