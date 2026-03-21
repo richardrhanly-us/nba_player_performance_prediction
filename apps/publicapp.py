@@ -13,8 +13,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from src.shared_app import (
     APP_VERSION,
     CURRENT_SEASON,
-    SHEET_KEY,
-    SCOPES,
     normalize_name,
     load_model,
     load_model_stats,
@@ -29,8 +27,46 @@ from src.shared_app import (
 )
 
 
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+SHEET_KEY = "1uhjV_Si-qcILfNJbKZrD52y4JnT_GvqQ0hzN7POekQM"
+
+
+TEAM_THEMES = {
+    "ATL": {"primary": "#E03A3E", "secondary": "#C1D32F"},
+    "BOS": {"primary": "#007A33", "secondary": "#BA9653"},
+    "BKN": {"primary": "#000000", "secondary": "#FFFFFF"},
+    "CHA": {"primary": "#1D1160", "secondary": "#00788C"},
+    "CHI": {"primary": "#CE1141", "secondary": "#000000"},
+    "CLE": {"primary": "#860038", "secondary": "#FDBB30"},
+    "DAL": {"primary": "#00538C", "secondary": "#B8C4CA"},
+    "DEN": {"primary": "#0E2240", "secondary": "#FEC524"},
+    "DET": {"primary": "#C8102E", "secondary": "#1D42BA"},
+    "GSW": {"primary": "#1D428A", "secondary": "#FFC72C"},
+    "HOU": {"primary": "#CE1141", "secondary": "#C4CED4"},
+    "IND": {"primary": "#002D62", "secondary": "#FDBB30"},
+    "LAC": {"primary": "#C8102E", "secondary": "#1D428A"},
+    "LAL": {"primary": "#552583", "secondary": "#FDB927"},
+    "MEM": {"primary": "#5D76A9", "secondary": "#12173F"},
+    "MIA": {"primary": "#98002E", "secondary": "#F9A01B"},
+    "MIL": {"primary": "#00471B", "secondary": "#EEE1C6"},
+    "MIN": {"primary": "#0C2340", "secondary": "#236192"},
+    "NOP": {"primary": "#0C2340", "secondary": "#C8102E"},
+    "NYK": {"primary": "#006BB6", "secondary": "#F58426"},
+    "OKC": {"primary": "#007AC1", "secondary": "#EF3B24"},
+    "ORL": {"primary": "#0077C0", "secondary": "#C4CED4"},
+    "PHI": {"primary": "#006BB6", "secondary": "#ED174C"},
+    "PHX": {"primary": "#1D1160", "secondary": "#E56020"},
+    "POR": {"primary": "#E03A3E", "secondary": "#000000"},
+    "SAC": {"primary": "#5A2D81", "secondary": "#63727A"},
+    "SAS": {"primary": "#000000", "secondary": "#C4CED4"},
+    "TOR": {"primary": "#CE1141", "secondary": "#000000"},
+    "UTA": {"primary": "#002B5C", "secondary": "#F9A01B"},
+    "WAS": {"primary": "#002B5C", "secondary": "#E31837"}
+}
+
+
 st.set_page_config(
-    page_title="NBA Points Prop Predictor",
+    page_title="NBA Edge Lab",
     page_icon="🏀",
     layout="centered"
 )
@@ -252,7 +288,7 @@ st.markdown("""
         box-shadow: 0 4px 14px rgba(0,0,0,0.18);
     }
 
-    .top-play-name {
+    .top-play-title {
         font-size: 1.02rem;
         font-weight: 800;
         color: #f8fafc;
@@ -289,66 +325,24 @@ st.markdown("""
         opacity: 1 !important;
     }
 
-    .stDataFrame {
-        border-radius: 12px;
-        overflow: hidden;
-    }
-
     div.stButton > button {
         background: linear-gradient(135deg, #1e293b 0%, #111827 100%) !important;
         color: #f8fafc !important;
-        -webkit-text-fill-color: #f8fafc !important;
         border: 1px solid rgba(255,255,255,0.10) !important;
         border-radius: 14px !important;
         padding: 0.65rem 1.25rem !important;
         font-weight: 700 !important;
         font-size: 0.98rem !important;
         box-shadow: 0 6px 18px rgba(0,0,0,0.18) !important;
-        transition: all 0.2s ease !important;
     }
 
-    div.stButton > button:hover {
-        background: linear-gradient(135deg, #243146 0%, #172033 100%) !important;
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-        border: 1px solid rgba(255,255,255,0.18) !important;
+    @media (max-width: 640px) {
+        .hero-title {
+            font-size: 1.7rem;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
-
-
-TEAM_THEMES = {
-    "ATL": {"primary": "#E03A3E", "secondary": "#C1D32F"},
-    "BOS": {"primary": "#007A33", "secondary": "#BA9653"},
-    "BKN": {"primary": "#000000", "secondary": "#FFFFFF"},
-    "CHA": {"primary": "#1D1160", "secondary": "#00788C"},
-    "CHI": {"primary": "#CE1141", "secondary": "#000000"},
-    "CLE": {"primary": "#860038", "secondary": "#FDBB30"},
-    "DAL": {"primary": "#00538C", "secondary": "#B8C4CA"},
-    "DEN": {"primary": "#0E2240", "secondary": "#FEC524"},
-    "DET": {"primary": "#C8102E", "secondary": "#1D42BA"},
-    "GSW": {"primary": "#1D428A", "secondary": "#FFC72C"},
-    "HOU": {"primary": "#CE1141", "secondary": "#C4CED4"},
-    "IND": {"primary": "#002D62", "secondary": "#FDBB30"},
-    "LAC": {"primary": "#C8102E", "secondary": "#1D428A"},
-    "LAL": {"primary": "#552583", "secondary": "#FDB927"},
-    "MEM": {"primary": "#5D76A9", "secondary": "#12173F"},
-    "MIA": {"primary": "#98002E", "secondary": "#F9A01B"},
-    "MIL": {"primary": "#00471B", "secondary": "#EEE1C6"},
-    "MIN": {"primary": "#0C2340", "secondary": "#236192"},
-    "NOP": {"primary": "#0C2340", "secondary": "#C8102E"},
-    "NYK": {"primary": "#006BB6", "secondary": "#F58426"},
-    "OKC": {"primary": "#007AC1", "secondary": "#EF3B24"},
-    "ORL": {"primary": "#0077C0", "secondary": "#C4CED4"},
-    "PHI": {"primary": "#006BB6", "secondary": "#ED174C"},
-    "PHX": {"primary": "#1D1160", "secondary": "#E56020"},
-    "POR": {"primary": "#E03A3E", "secondary": "#000000"},
-    "SAC": {"primary": "#5A2D81", "secondary": "#63727A"},
-    "SAS": {"primary": "#000000", "secondary": "#C4CED4"},
-    "TOR": {"primary": "#CE1141", "secondary": "#000000"},
-    "UTA": {"primary": "#002B5C", "secondary": "#F9A01B"},
-    "WAS": {"primary": "#002B5C", "secondary": "#E31837"}
-}
 
 
 def hex_to_rgba(hex_color: str, alpha: float) -> str:
@@ -382,15 +376,6 @@ def safe_live_display(value, fallback="N/A"):
     return str(value)
 
 
-def format_health_last_update(value):
-    if value is None:
-        return "N/A"
-    try:
-        return pd.to_datetime(value).strftime("%b %d, %I:%M %p")
-    except Exception:
-        return str(value)
-
-
 @st.cache_resource
 def get_gsheet_client():
     creds = Credentials.from_service_account_info(
@@ -400,15 +385,10 @@ def get_gsheet_client():
     return gspread.authorize(creds)
 
 
-@st.cache_resource
-def get_top_plays_live_sheet():
-    client = get_gsheet_client()
-    return client.open_by_key(SHEET_KEY).worksheet("Top Plays Live")
-
-
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=300)
 def get_top_plays_live_df():
-    sheet = get_top_plays_live_sheet()
+    client = get_gsheet_client()
+    sheet = client.open_by_key(SHEET_KEY).worksheet("Top Plays Live")
     values = sheet.get_all_values()
 
     if not values or len(values) < 2:
@@ -418,39 +398,16 @@ def get_top_plays_live_df():
     rows = values[1:]
     df = pd.DataFrame(rows, columns=headers)
 
-    rename_map = {
-        "PLAYER_NAME": "Player",
-        "sportsbook": "Book",
-        "sportsbook_line": "Line",
-        "predicted_points": "Prediction",
-        "edge": "Edge",
-        "model_pick": "Best Bet",
-        "home_team": "Home Team",
-        "away_team": "Away Team",
-        "last_update": "Last Update",
-    }
-    df = df.rename(columns=rename_map)
-
-    if "Line" in df.columns:
-        df["Line"] = pd.to_numeric(df["Line"], errors="coerce")
-    if "Prediction" in df.columns:
-        df["Prediction"] = pd.to_numeric(df["Prediction"], errors="coerce")
-    if "Edge" in df.columns:
-        df["Edge"] = pd.to_numeric(df["Edge"], errors="coerce")
-
-    if "Home Team" in df.columns and "Away Team" in df.columns:
-        df["Matchup"] = df["Away Team"].astype(str) + " @ " + df["Home Team"].astype(str)
+    numeric_cols = ["sportsbook_line", "predicted_points", "edge"]
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
 
     return df
 
 
-def get_player_name_map():
-    actual_name_to_id, _ = load_active_players()
-    return actual_name_to_id
-
-
 def get_player_lookup():
-    actual_name_to_id = get_player_name_map()
+    actual_name_to_id, _ = load_active_players()
     player_names = sorted(actual_name_to_id.keys())
     return actual_name_to_id, player_names
 
@@ -488,17 +445,13 @@ def build_prediction(player_name, sportsbook_line):
 
     over_prob = None
     under_prob = None
-    edge = None
-
     if sportsbook_line is not None and points_std:
         try:
             over_prob = 1 - norm.cdf(sportsbook_line, loc=predicted_points, scale=points_std)
             under_prob = norm.cdf(sportsbook_line, loc=predicted_points, scale=points_std)
-            edge = predicted_points - sportsbook_line
         except Exception:
             over_prob = None
             under_prob = None
-            edge = None
 
     season_avg = None
     last5_avg = None
@@ -514,7 +467,6 @@ def build_prediction(player_name, sportsbook_line):
 
     live_stats = None
     team_info = None
-
     try:
         live_stats = get_live_player_stats(actual_name)
     except Exception:
@@ -540,14 +492,13 @@ def build_prediction(player_name, sportsbook_line):
             if "TEAM_ABBREVIATION" in player_info_df.columns:
                 team_abbr = player_info_df.iloc[0]["TEAM_ABBREVIATION"]
         except Exception:
-            team_name = None
-            team_abbr = None
+            pass
 
     return {
         "actual_name": actual_name,
         "predicted_points": predicted_points,
         "sportsbook_line": sportsbook_line,
-        "edge": edge,
+        "edge": predicted_points - sportsbook_line if sportsbook_line is not None else None,
         "over_prob": over_prob,
         "under_prob": under_prob,
         "season_avg": season_avg,
@@ -562,11 +513,11 @@ def build_prediction(player_name, sportsbook_line):
 
 st.markdown(f"""
 <div class="hero">
-    <div class="hero-title">NBA Points Prop Predictor</div>
-    <p class="hero-subtitle">Model-based player points projections and top plays board</p>
+    <div class="hero-title">NBA Edge Lab</div>
+    <p class="hero-subtitle">Model-driven player insights and top play signals.</p>
     <div class="hero-pills">
-        <div class="hero-pill">Top plays board</div>
-        <div class="hero-pill">Player lookup</div>
+        <div class="hero-pill">Projected points</div>
+        <div class="hero-pill">Top edges</div>
         <div class="hero-pill">Version: {APP_VERSION}</div>
     </div>
 </div>
@@ -604,54 +555,82 @@ else:
     )
 
 if health:
+    last_update_str = (
+        health["last_update"].strftime("%b %d, %I:%M %p")
+        if health["last_update"] is not None
+        else "N/A"
+    )
     st.caption(
-        f"Health Check: Last update {format_health_last_update(health.get('last_update'))} | "
+        f"Health Check: Last update {last_update_str} | "
         f"Graded {health.get('graded', 0)} | Pending {health.get('pending', 0)}"
     )
 
 try:
     top_plays_df = get_top_plays_live_df()
 
-    if top_plays_df is None or top_plays_df.empty:
+    if top_plays_df.empty:
         st.info("No top plays available right now.")
     else:
         st.markdown("### ⭐ Top 3 Plays")
 
         top3 = top_plays_df.head(3)
         for _, row in top3.iterrows():
-            matchup = row["Matchup"] if "Matchup" in row else "N/A"
-            prediction_text = row["Prediction"] if "Prediction" in row and pd.notna(row["Prediction"]) else "N/A"
-            edge_text = row["Edge"] if "Edge" in row and pd.notna(row["Edge"]) else "N/A"
-            best_bet = row["Best Bet"] if "Best Bet" in row else "N/A"
-            line_text = row["Line"] if "Line" in row and pd.notna(row["Line"]) else "N/A"
+            edge_val = pd.to_numeric(row.get("edge"), errors="coerce")
+            pred_val = pd.to_numeric(row.get("predicted_points"), errors="coerce")
+            line_val = pd.to_numeric(row.get("sportsbook_line"), errors="coerce")
+            player_name = row.get("PLAYER_NAME", "Player")
+            pick = row.get("model_pick", "")
+            matchup = f"{row.get('away_team', '')} @ {row.get('home_team', '')}"
 
             st.markdown(
                 f"""
                 <div class="top-play-card">
-                    <div class="top-play-name">{row["Player"]} — {best_bet} {line_text}</div>
+                    <div class="top-play-title">{player_name} — {pick} {line_val:.1f}</div>
                     <div class="top-play-sub">{matchup}</div>
-                    <div class="top-play-meta">Prediction: {prediction_text} | Edge: {edge_text}</div>
+                    <div class="top-play-meta">Projection: {pred_val:.2f} | Edge: {edge_val:+.2f}</div>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
 
-        display_cols = [col for col in ["Player", "Matchup", "Line", "Prediction", "Edge", "Best Bet", "Book"] if col in top_plays_df.columns]
+        display_cols = [
+            col for col in [
+                "PLAYER_NAME",
+                "away_team",
+                "home_team",
+                "sportsbook_line",
+                "predicted_points",
+                "edge",
+                "model_pick",
+                "sportsbook",
+            ] if col in top_plays_df.columns
+        ]
+
         display_df = top_plays_df[display_cols].copy()
+        display_df = display_df.rename(columns={
+            "PLAYER_NAME": "Player",
+            "away_team": "Away",
+            "home_team": "Home",
+            "sportsbook_line": "Line",
+            "predicted_points": "Projection",
+            "edge": "Edge",
+            "model_pick": "Best Bet",
+            "sportsbook": "Book",
+        })
 
         st.dataframe(
-            display_df,
+            display_df.head(10),
             use_container_width=True,
             hide_index=True
         )
-        st.caption("Top plays are precomputed and refreshed by the update pipeline.")
+        st.caption("Top plays are prebuilt from the latest updater run for faster loading.")
 except Exception as e:
-    st.error(f"Could not load Top Plays Live: {e}")
+    st.info(f"Top plays are temporarily unavailable: {e}")
 
 st.markdown("</div>", unsafe_allow_html=True)
 
 
-st.markdown('<div class="section-card"><div class="section-title">Player Prediction</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-card"><div class="section-title">Player Projection</div>', unsafe_allow_html=True)
 
 actual_name_to_id, player_names = get_player_lookup()
 
@@ -671,14 +650,13 @@ sportsbook_line = st.number_input(
 )
 
 if selected_player:
-    with st.spinner("Building prediction..."):
+    with st.spinner("Building projection..."):
         result = build_prediction(selected_player, sportsbook_line)
 
     if result.get("error"):
         st.error(result["error"])
     else:
-        team_abbr = result.get("team_abbr")
-        team_theme = get_team_theme(team_abbr or "")
+        team_theme = get_team_theme(result.get("team_abbr") or "")
         primary = team_theme["primary"]
         secondary = team_theme["secondary"]
 
@@ -698,8 +676,7 @@ if selected_player:
         season_avg = result.get("season_avg")
         last5_avg = result.get("last5_avg")
         games_used = result.get("games_used")
-        edge = result["edge"]
-        edge_text = "N/A" if edge is None else f"{edge:+.2f}"
+        edge = result.get("edge")
         over_prob = result.get("over_prob")
         under_prob = result.get("under_prob")
 
@@ -771,7 +748,7 @@ if selected_player:
                         border: 1px solid {model_stat_border};
                     ">
                         <div class="model-stat-label" style="color: {model_label_color};">Model Edge</div>
-                        <div class="model-stat-value">{edge_text}</div>
+                        <div class="model-stat-value">{edge:+.2f}</div>
                     </div>
 
                     <div class="model-stat" style="
@@ -891,7 +868,7 @@ if selected_player:
                     f"""
                     <div class="mini-card">
                         <div class="mini-title">Game Status</div>
-                        <div class="mini-value">{safe_live_display(live_stats.get('game_status', 'Live'))}</div>
+                        <div class="mini-value">{safe_live_display(live_stats.get('game_status', 'Recent Game'))}</div>
                     </div>
                     """,
                     unsafe_allow_html=True
