@@ -197,16 +197,7 @@ st.markdown("""
         color: #f8fafc;
     }
 
-    /* remove extra gap after the sportsbook widget block */
-    div[data-testid="stSelectbox"] + div[data-testid="stMarkdown"] {
-        margin-top: -10px !important;
-    }
-    
-    /* keep compact panel tight */
-    .sportsbook-compact {
-        margin-top: 0 !important;
-        margin-bottom: 10px !important;
-    }
+   
 
     .summary-strip {
         display: grid;
