@@ -1535,54 +1535,54 @@ if selected_player:
         ])
         st.markdown(model_html, unsafe_allow_html=True)
 
-game_info_html = f"""
-<div class="section-card">
-    <div class="section-title">Game Info</div>
-    <div class="summary-strip">
-        <div class="summary-item">
-            <div class="summary-label">Status</div>
-            <div class="summary-value">{game_status}</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-label">Matchup</div>
-            <div class="summary-value">{matchup}</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-label">Date</div>
-            <div class="summary-value">{game_date}</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-label">Time</div>
-            <div class="summary-value">{game_time}</div>
-        </div>
-    </div>
-"""
-
-if live_points is not None or live_clock is not None:
-    game_info_html += f"""
-    <div style="margin-top: 14px;" class="summary-strip">
-        <div class="summary-item">
-            <div class="summary-label">Live Points</div>
-            <div class="summary-value">{live_points if live_points is not None else "—"}</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-label">FGM / FGA</div>
-            <div class="summary-value">{f"{live_fgm} / {live_fga}" if live_fgm is not None and live_fga is not None else "—"}</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-label">Minutes Played</div>
-            <div class="summary-value">{live_minutes if live_minutes is not None else "—"}</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-label">Game Clock</div>
-            <div class="summary-value">{live_clock if live_clock is not None else "—"}</div>
-        </div>
-    </div>
-    """
-
-game_info_html += "</div>"
-
-st.markdown(game_info_html, unsafe_allow_html=True)
+        game_info_html = f"""
+        <div class="section-card">
+            <div class="section-title">Game Info</div>
+            <div class="summary-strip">
+                <div class="summary-item">
+                    <div class="summary-label">Status</div>
+                    <div class="summary-value">{game_status}</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">Matchup</div>
+                    <div class="summary-value">{matchup}</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">Date</div>
+                    <div class="summary-value">{game_date}</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">Time</div>
+                    <div class="summary-value">{game_time}</div>
+                </div>
+            </div>
+        """
+        
+        if live_points is not None or live_clock is not None:
+            game_info_html += f"""
+            <div style="margin-top: 14px;" class="summary-strip">
+                <div class="summary-item">
+                    <div class="summary-label">Live Points</div>
+                    <div class="summary-value">{live_points if live_points is not None else "—"}</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">FGM / FGA</div>
+                    <div class="summary-value">{f"{live_fgm} / {live_fga}" if live_fgm is not None and live_fga is not None else "—"}</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">Minutes Played</div>
+                    <div class="summary-value">{live_minutes if live_minutes is not None else "—"}</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">Game Clock</div>
+                    <div class="summary-value">{live_clock if live_clock is not None else "—"}</div>
+                </div>
+            </div>
+            """
+        
+        game_info_html += "</div>"
+        
+        st.markdown(game_info_html, unsafe_allow_html=True)
 
         update_text = book_updated if book_updated else "N/A"
 
