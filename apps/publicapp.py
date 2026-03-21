@@ -1,6 +1,9 @@
+import sys
 import os
 import pandas as pd
 import streamlit as st
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from shared_app import (
     APP_VERSION,
