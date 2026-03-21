@@ -499,6 +499,63 @@ def fetch_all_today_player_props(api_key, bookmaker_key=BOOKMAKER_KEY):
     return df
 
 
+@st.cache_data(ttl=300)
+def get_today_games(api_key):
+    try:
+        return fetch_upcoming_nba_events(api_key)
+    except Exception:
+        return []
+
+
+@st.cache_data(ttl=300)
+def get_available_sportsbooks():
+    return [
+        "draftkings",
+        "fanduel",
+        "betmgm",
+        "caesars",
+        "espnbet",
+        "betrivers",
+        "hardrockbet",
+    ]
+
+
+@st.cache_data(ttl=300)
+def get_player_points_lines(player_name, bookmaker_key):
+    try:
+        api_key = st.secrets["32f11724b6958c4e8887b2554b98abf6"]
+    except Exception:
+        return None
+
+    try:
+        props_df = fetch_all_today_player_props(api_key, bookmaker_key)
+    except Exception:
+        return None
+
+    if props_df.empty:
+        return None
+
+    normalized_target = normalize_name(player_name)
+    props_df = props_df.copy()
+    props_df["normalized_name"] = props_df["player_name_raw"].apply(normalize_name)
+
+    player_df = props_df[props_df["normalized_name"] == normalized_target].copy()
+    if player_df.empty:
+        return None
+
+    row = player_df.iloc[0]
+
+    return {
+        "player_name": row.get("player_name_raw"),
+        "points_line": safe_float(row.get("line")),
+        "sportsbook": bookmaker_key,
+        "home_team": row.get("home_team"),
+        "away_team": row.get("away_team"),
+        "over_price": row.get("over_price"),
+        "under_price": row.get("under_price"),
+    }
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def get_top_plays_today_df(api_key, debug=False):
     model = load_model()
