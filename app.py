@@ -1560,25 +1560,25 @@ if selected_player:
         
         if live_points is not None or live_clock is not None:
             game_info_html += f"""
-            <div style="margin-top: 14px;" class="summary-strip">
-                <div class="summary-item">
-                    <div class="summary-label">Live Points</div>
-                    <div class="summary-value">{live_points if live_points is not None else "—"}</div>
-                </div>
-                <div class="summary-item">
-                    <div class="summary-label">FGM / FGA</div>
-                    <div class="summary-value">{f"{live_fgm} / {live_fga}" if live_fgm is not None and live_fga is not None else "—"}</div>
-                </div>
-                <div class="summary-item">
-                    <div class="summary-label">Minutes Played</div>
-                    <div class="summary-value">{live_minutes if live_minutes is not None else "—"}</div>
-                </div>
-                <div class="summary-item">
-                    <div class="summary-label">Game Clock</div>
-                    <div class="summary-value">{live_clock if live_clock is not None else "—"}</div>
-                </div>
-            </div>
-            """
+        <div style="margin-top: 14px;" class="summary-strip">
+        <div class="summary-item">
+        <div class="summary-label">Live Points</div>
+        <div class="summary-value">{live_points if live_points is not None else "—"}</div>
+        </div>
+        <div class="summary-item">
+        <div class="summary-label">FGM / FGA</div>
+        <div class="summary-value">{f"{live_fgm} / {live_fga}" if live_fgm is not None and live_fga is not None else "—"}</div>
+        </div>
+        <div class="summary-item">
+        <div class="summary-label">Minutes Played</div>
+        <div class="summary-value">{live_minutes if live_minutes is not None else "—"}</div>
+        </div>
+        <div class="summary-item">
+        <div class="summary-label">Game Clock</div>
+        <div class="summary-value">{live_clock if live_clock is not None else "—"}</div>
+        </div>
+        </div>
+        """
         
         game_info_html += "</div>"
         
