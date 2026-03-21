@@ -1,13 +1,20 @@
 import sys
 import os
+import json
 import pandas as pd
 import streamlit as st
+import gspread
+
+from scipy.stats import norm
+from google.oauth2.service_account import Credentials
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.shared_app import (
     APP_VERSION,
     CURRENT_SEASON,
+    SHEET_KEY,
+    SCOPES,
     normalize_name,
     load_model,
     load_model_stats,
@@ -19,9 +26,7 @@ from src.shared_app import (
     build_player_feature_row,
     get_live_player_stats,
     get_team_game_info,
-    get_top_plays_today_df,
 )
-
 
 
 st.set_page_config(
@@ -33,7 +38,141 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+    .stApp {
+        background: linear-gradient(180deg, #081120 0%, #0f172a 100%);
+        color: #f8fafc;
+    }
 
+    .block-container {
+        padding-top: 1.1rem;
+        padding-bottom: 3rem;
+        max-width: 980px;
+    }
+
+    hr, div[data-testid="stDivider"] {
+        display: none !important;
+    }
+
+    .hero {
+        background:
+            radial-gradient(circle at top left, rgba(59,130,246,0.18), transparent 34%),
+            radial-gradient(circle at top right, rgba(168,85,247,0.14), transparent 30%),
+            linear-gradient(135deg, #111827 0%, #1e293b 100%);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 22px;
+        padding: 26px 24px 18px 24px;
+        margin-bottom: 14px;
+        box-shadow: 0 14px 34px rgba(0,0,0,0.30);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent);
+        pointer-events: none;
+    }
+
+    .hero-title {
+        font-size: 2.1rem;
+        font-weight: 900;
+        margin-bottom: 6px;
+        color: #ffffff;
+        letter-spacing: -0.02em;
+        position: relative;
+        z-index: 1;
+    }
+
+    .hero-subtitle {
+        color: #cbd5e1;
+        font-size: 1rem;
+        margin-bottom: 14px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .hero-pills {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        position: relative;
+        z-index: 1;
+    }
+
+    .hero-pill {
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.08);
+        color: #dbeafe;
+        padding: 7px 12px;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
+
+    .section-card {
+        background: rgba(15, 23, 42, 0.96);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 18px;
+        padding: 16px;
+        margin-top: 14px;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+    }
+
+    .section-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin-bottom: 12px;
+        color: #f8fafc;
+    }
+
+    .metric-box {
+        background: rgba(15,23,42,0.78);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-bottom: 12px;
+    }
+
+    .metric-label {
+        color: #94a3b8;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 4px;
+    }
+
+    .metric-value {
+        color: #f8fafc;
+        font-size: 1.05rem;
+        font-weight: 800;
+    }
+
+    .mini-card {
+        background: rgba(15,23,42,0.72);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 14px;
+        padding: 14px;
+        margin-bottom: 10px;
+    }
+
+    .mini-title {
+        color: #cbd5e1;
+        font-size: 0.84rem;
+        margin-bottom: 6px;
+    }
+
+    .mini-value {
+        color: #f8fafc;
+        font-size: 1.2rem;
+        font-weight: 800;
+    }
+
+    .muted {
+        color: #94a3b8;
+    }
 
     .model-card {
         border-radius: 18px;
@@ -103,150 +242,79 @@ st.markdown("""
         font-size: 0.84rem;
         margin-top: 10px;
     }
-    
-    
-    .stApp {
-        background: linear-gradient(180deg, #081120 0%, #0f172a 100%);
-        color: #f8fafc;
-    }
 
-    .block-container {
-        padding-top: 1.1rem;
-        padding-bottom: 3rem;
-        max-width: 980px;
-    }
-
-    hr, div[data-testid="stDivider"] {
-        display: none !important;
-    }
-
-    .hero {
-        background: linear-gradient(135deg, #111827 0%, #1e293b 100%);
+    .top-play-card {
+        background: rgba(15,23,42,0.88);
         border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 18px;
-        padding: 1.15rem 1.15rem 1rem 1.15rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.25);
-    }
-
-    .hero-title {
-        font-size: 1.7rem;
-        font-weight: 800;
-        color: #f8fafc;
-        margin-bottom: 0.2rem;
-    }
-
-    .hero-sub {
-        color: #94a3b8;
-        font-size: 0.95rem;
-        margin-bottom: 0.15rem;
-    }
-
-    .section-card {
-        background: rgba(17,24,39,0.78);
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 16px;
-        padding: 1rem 1rem 0.85rem 1rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.20);
-    }
-
-    .section-title {
-        color: #f8fafc;
-        font-size: 1.08rem;
-        font-weight: 800;
-        margin-bottom: 0.8rem;
-    }
-
-    .metric-box {
-        background: rgba(15,23,42,0.78);
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 12px;
-        padding: 12px 14px;
-        margin-bottom: 12px;
-    }
-
-    .metric-label {
-        color: #94a3b8;
-        font-size: 0.72rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        margin-bottom: 4px;
-    }
-
-    .metric-value {
-        color: #f8fafc;
-        font-size: 1.05rem;
-        font-weight: 800;
-    }
-
-    .mini-card {
-        background: rgba(15,23,42,0.72);
-        border: 1px solid rgba(255,255,255,0.05);
         border-radius: 14px;
-        padding: 14px;
+        padding: 14px 16px;
         margin-bottom: 10px;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.18);
     }
 
-    .mini-title {
-        color: #cbd5e1;
-        font-size: 0.84rem;
+    .top-play-name {
+        font-size: 1.02rem;
+        font-weight: 800;
+        color: #f8fafc;
         margin-bottom: 6px;
     }
 
-    .mini-value {
-        color: #f8fafc;
-        font-size: 1.2rem;
-        font-weight: 800;
+    .top-play-sub {
+        color: #cbd5e1;
+        font-size: 0.92rem;
+        margin-bottom: 4px;
     }
 
-    .muted {
+    .top-play-meta {
         color: #94a3b8;
+        font-size: 0.88rem;
+    }
+
+    .stSelectbox label, .stNumberInput label {
+        color: #e5e7eb !important;
+        font-weight: 600;
+    }
+
+    div[data-baseweb="select"] > div {
+        background-color: #111827 !important;
+        border: 1px solid rgba(255,255,255,0.10) !important;
+        border-radius: 14px !important;
+        color: white !important;
+    }
+
+    .stNumberInput input {
+        background-color: #111827 !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        opacity: 1 !important;
+    }
+
+    .stDataFrame {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    div.stButton > button {
+        background: linear-gradient(135deg, #1e293b 0%, #111827 100%) !important;
+        color: #f8fafc !important;
+        -webkit-text-fill-color: #f8fafc !important;
+        border: 1px solid rgba(255,255,255,0.10) !important;
+        border-radius: 14px !important;
+        padding: 0.65rem 1.25rem !important;
+        font-weight: 700 !important;
+        font-size: 0.98rem !important;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.18) !important;
+        transition: all 0.2s ease !important;
+    }
+
+    div.stButton > button:hover {
+        background: linear-gradient(135deg, #243146 0%, #172033 100%) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border: 1px solid rgba(255,255,255,0.18) !important;
     }
 </style>
 """, unsafe_allow_html=True)
-
-
-def get_player_name_map():
-    active_players = load_active_players()
-    if isinstance(active_players, tuple):
-        actual_name_to_id, _ = active_players
-    else:
-        actual_name_to_id = active_players
-    return actual_name_to_id
-
-
-def get_player_lookup():
-    actual_name_to_id = get_player_name_map()
-    player_names = sorted(actual_name_to_id.keys())
-    return actual_name_to_id, player_names
-
-
-def format_health_last_update(value):
-    if value is None:
-        return "N/A"
-    try:
-        return pd.to_datetime(value).strftime("%b %d, %I:%M %p")
-    except Exception:
-        return str(value)
-
-
-def safe_live_display(value, fallback="N/A"):
-    if value is None:
-        return fallback
-    if isinstance(value, str) and not value.strip():
-        return fallback
-    return str(value)
-
-
-def hex_to_rgba(hex_color: str, alpha: float) -> str:
-    hex_color = hex_color.lstrip("#")
-    if len(hex_color) != 6:
-        return f"rgba(56,189,248,{alpha})"
-    r = int(hex_color[0:2], 16)
-    g = int(hex_color[2:4], 16)
-    b = int(hex_color[4:6], 16)
-    return f"rgba({r}, {g}, {b}, {alpha})"
 
 
 TEAM_THEMES = {
@@ -283,6 +351,16 @@ TEAM_THEMES = {
 }
 
 
+def hex_to_rgba(hex_color: str, alpha: float) -> str:
+    hex_color = hex_color.lstrip("#")
+    if len(hex_color) != 6:
+        return f"rgba(56,189,248,{alpha})"
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+    return f"rgba({r}, {g}, {b}, {alpha})"
+
+
 def get_team_theme(team_abbr: str):
     return TEAM_THEMES.get(team_abbr, {"primary": "#38bdf8", "secondary": "#60a5fa"})
 
@@ -295,17 +373,93 @@ def get_pick_label(edge):
         return ("Lean Over", "over") if edge > 0 else ("Lean Under", "under")
     return ("Strong Over", "over") if edge > 0 else ("Strong Under", "under")
 
+
+def safe_live_display(value, fallback="N/A"):
+    if value is None:
+        return fallback
+    if isinstance(value, str) and not value.strip():
+        return fallback
+    return str(value)
+
+
+def format_health_last_update(value):
+    if value is None:
+        return "N/A"
+    try:
+        return pd.to_datetime(value).strftime("%b %d, %I:%M %p")
+    except Exception:
+        return str(value)
+
+
+@st.cache_resource
+def get_gsheet_client():
+    creds = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=SCOPES
+    )
+    return gspread.authorize(creds)
+
+
+@st.cache_resource
+def get_top_plays_live_sheet():
+    client = get_gsheet_client()
+    return client.open_by_key(SHEET_KEY).worksheet("Top Plays Live")
+
+
+@st.cache_data(ttl=120)
+def get_top_plays_live_df():
+    sheet = get_top_plays_live_sheet()
+    values = sheet.get_all_values()
+
+    if not values or len(values) < 2:
+        return pd.DataFrame()
+
+    headers = values[0]
+    rows = values[1:]
+    df = pd.DataFrame(rows, columns=headers)
+
+    rename_map = {
+        "PLAYER_NAME": "Player",
+        "sportsbook": "Book",
+        "sportsbook_line": "Line",
+        "predicted_points": "Prediction",
+        "edge": "Edge",
+        "model_pick": "Best Bet",
+        "home_team": "Home Team",
+        "away_team": "Away Team",
+        "last_update": "Last Update",
+    }
+    df = df.rename(columns=rename_map)
+
+    if "Line" in df.columns:
+        df["Line"] = pd.to_numeric(df["Line"], errors="coerce")
+    if "Prediction" in df.columns:
+        df["Prediction"] = pd.to_numeric(df["Prediction"], errors="coerce")
+    if "Edge" in df.columns:
+        df["Edge"] = pd.to_numeric(df["Edge"], errors="coerce")
+
+    if "Home Team" in df.columns and "Away Team" in df.columns:
+        df["Matchup"] = df["Away Team"].astype(str) + " @ " + df["Home Team"].astype(str)
+
+    return df
+
+
+def get_player_name_map():
+    actual_name_to_id, _ = load_active_players()
+    return actual_name_to_id
+
+
+def get_player_lookup():
+    actual_name_to_id = get_player_name_map()
+    player_names = sorted(actual_name_to_id.keys())
+    return actual_name_to_id, player_names
+
+
 @st.cache_data(ttl=120)
 def build_prediction(player_name, sportsbook_line):
     model = load_model()
     model_stats = load_model_stats()
-    active_players = load_active_players()
-
-    if isinstance(active_players, tuple):
-        actual_name_to_id, normalized_to_actual = active_players
-    else:
-        actual_name_to_id = active_players
-        normalized_to_actual = {normalize_name(k): k for k in actual_name_to_id.keys()}
+    actual_name_to_id, normalized_to_actual = load_active_players()
 
     normalized = normalize_name(player_name)
     actual_name = normalized_to_actual.get(normalized, player_name)
@@ -334,21 +488,24 @@ def build_prediction(player_name, sportsbook_line):
 
     over_prob = None
     under_prob = None
+    edge = None
 
     if sportsbook_line is not None and points_std:
         try:
-            from scipy.stats import norm
             over_prob = 1 - norm.cdf(sportsbook_line, loc=predicted_points, scale=points_std)
             under_prob = norm.cdf(sportsbook_line, loc=predicted_points, scale=points_std)
+            edge = predicted_points - sportsbook_line
         except Exception:
             over_prob = None
             under_prob = None
+            edge = None
 
     season_avg = None
     last5_avg = None
     games_used = len(gamelog_df)
 
     try:
+        gamelog_df = gamelog_df.copy()
         gamelog_df["PTS"] = pd.to_numeric(gamelog_df["PTS"], errors="coerce")
         season_avg = float(gamelog_df["PTS"].mean())
         last5_avg = float(gamelog_df["PTS"].tail(5).mean())
@@ -357,6 +514,7 @@ def build_prediction(player_name, sportsbook_line):
 
     live_stats = None
     team_info = None
+
     try:
         live_stats = get_live_player_stats(actual_name)
     except Exception:
@@ -374,17 +532,22 @@ def build_prediction(player_name, sportsbook_line):
         player_info_df = None
 
     team_name = None
-    if player_info_df is not None and not player_info_df.empty and "TEAM_NAME" in player_info_df.columns:
+    team_abbr = None
+    if player_info_df is not None and not player_info_df.empty:
         try:
-            team_name = player_info_df.iloc[0]["TEAM_NAME"]
+            if "TEAM_NAME" in player_info_df.columns:
+                team_name = player_info_df.iloc[0]["TEAM_NAME"]
+            if "TEAM_ABBREVIATION" in player_info_df.columns:
+                team_abbr = player_info_df.iloc[0]["TEAM_ABBREVIATION"]
         except Exception:
             team_name = None
+            team_abbr = None
 
     return {
         "actual_name": actual_name,
         "predicted_points": predicted_points,
         "sportsbook_line": sportsbook_line,
-        "edge": predicted_points - sportsbook_line if sportsbook_line is not None else None,
+        "edge": edge,
         "over_prob": over_prob,
         "under_prob": under_prob,
         "season_avg": season_avg,
@@ -393,19 +556,21 @@ def build_prediction(player_name, sportsbook_line):
         "live_stats": live_stats,
         "team_info": team_info,
         "team_name": team_name,
+        "team_abbr": team_abbr,
     }
 
 
-st.markdown(
-    f"""
-    <div class="hero">
-        <div class="hero-title">NBA Points Prop Predictor</div>
-        <div class="hero-sub">Model-based player points projections and top plays board</div>
-        <div class="hero-sub">Version: {APP_VERSION}</div>
+st.markdown(f"""
+<div class="hero">
+    <div class="hero-title">NBA Points Prop Predictor</div>
+    <p class="hero-subtitle">Model-based player points projections and top plays board</p>
+    <div class="hero-pills">
+        <div class="hero-pill">Top plays board</div>
+        <div class="hero-pill">Player lookup</div>
+        <div class="hero-pill">Version: {APP_VERSION}</div>
     </div>
-    """,
-    unsafe_allow_html=True
-)
+</div>
+""", unsafe_allow_html=True)
 
 
 top_games_win_rate, top_games_total = get_strong_plays_summary()
@@ -444,37 +609,44 @@ if health:
         f"Graded {health.get('graded', 0)} | Pending {health.get('pending', 0)}"
     )
 
-odds_api_key = os.getenv("ODDS_API_KEY")
+try:
+    top_plays_df = get_top_plays_live_df()
 
-if not odds_api_key:
-    st.warning("ODDS_API_KEY not found in environment.")
-else:
-    try:
-        loading_box = st.empty()
+    if top_plays_df is None or top_plays_df.empty:
+        st.info("No top plays available right now.")
+    else:
+        st.markdown("### ⭐ Top 3 Plays")
 
-        with loading_box.container():
+        top3 = top_plays_df.head(3)
+        for _, row in top3.iterrows():
+            matchup = row["Matchup"] if "Matchup" in row else "N/A"
+            prediction_text = row["Prediction"] if "Prediction" in row and pd.notna(row["Prediction"]) else "N/A"
+            edge_text = row["Edge"] if "Edge" in row and pd.notna(row["Edge"]) else "N/A"
+            best_bet = row["Best Bet"] if "Best Bet" in row else "N/A"
+            line_text = row["Line"] if "Line" in row and pd.notna(row["Line"]) else "N/A"
+
             st.markdown(
-                """
-                <div class="metric-box">
-                    <div class="metric-label">Loading Top Plays</div>
-                    <div class="metric-value">Finding today’s strongest edges...</div>
-                    <div class="muted">Comparing sportsbook lines against recent player performance</div>
+                f"""
+                <div class="top-play-card">
+                    <div class="top-play-name">{row["Player"]} — {best_bet} {line_text}</div>
+                    <div class="top-play-sub">{matchup}</div>
+                    <div class="top-play-meta">Prediction: {prediction_text} | Edge: {edge_text}</div>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
 
-        top_plays_df = get_top_plays_today_df(odds_api_key)
+        display_cols = [col for col in ["Player", "Matchup", "Line", "Prediction", "Edge", "Best Bet", "Book"] if col in top_plays_df.columns]
+        display_df = top_plays_df[display_cols].copy()
 
-        loading_box.empty()
-
-        if top_plays_df is None or top_plays_df.empty:
-            st.info("No top plays available right now.")
-        else:
-            st.dataframe(top_plays_df, use_container_width=True, height=360)
-
-    except Exception as e:
-        st.error(f"Could not build top plays board: {e}")
+        st.dataframe(
+            display_df,
+            use_container_width=True,
+            hide_index=True
+        )
+        st.caption("Top plays are precomputed and refreshed by the update pipeline.")
+except Exception as e:
+    st.error(f"Could not load Top Plays Live: {e}")
 
 st.markdown("</div>", unsafe_allow_html=True)
 
@@ -505,17 +677,7 @@ if selected_player:
     if result.get("error"):
         st.error(result["error"])
     else:
-        col1, col2, col3 = st.columns(3)
-
-        player_info_df = get_player_info_df(actual_name_to_id[result["actual_name"]])
-
-        team_abbr = None
-        if player_info_df is not None and not player_info_df.empty and "TEAM_ABBREVIATION" in player_info_df.columns:
-            try:
-                team_abbr = player_info_df.iloc[0]["TEAM_ABBREVIATION"]
-            except Exception:
-                team_abbr = None
-
+        team_abbr = result.get("team_abbr")
         team_theme = get_team_theme(team_abbr or "")
         primary = team_theme["primary"]
         secondary = team_theme["secondary"]
@@ -533,6 +695,9 @@ if selected_player:
         model_label_color = "#cbd5e1"
 
         predicted_points = result["predicted_points"]
+        season_avg = result.get("season_avg")
+        last5_avg = result.get("last5_avg")
+        games_used = result.get("games_used")
         edge = result["edge"]
         over_prob = result.get("over_prob")
         under_prob = result.get("under_prob")
@@ -605,7 +770,7 @@ if selected_player:
                         border: 1px solid {model_stat_border};
                     ">
                         <div class="model-stat-label" style="color: {model_label_color};">Model Edge</div>
-                        <div class="model-stat-value">{edge:+.2f}</div>
+                        <div class="model-stat-value">{edge:+.2f if edge is not None else 'N/A'}</div>
                     </div>
 
                     <div class="model-stat" style="
@@ -632,43 +797,6 @@ if selected_player:
             """,
             unsafe_allow_html=True
         )
-
-        with col1:
-            st.markdown(
-                f"""
-                <div class="mini-card">
-                    <div class="mini-title">Predicted Points</div>
-                    <div class="mini-value">{predicted_points:.2f}</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-        with col2:
-            edge_display = "N/A" if edge is None else f"{edge:+.2f}"
-            st.markdown(
-                f"""
-                <div class="mini-card">
-                    <div class="mini-title">Edge vs Line</div>
-                    <div class="mini-value">{edge_display}</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-        with col3:
-            pick_label = "N/A"
-            if edge is not None:
-                pick_label = "OVER" if edge > 0 else "UNDER"
-            st.markdown(
-                f"""
-                <div class="mini-card">
-                    <div class="mini-title">Model Pick</div>
-                    <div class="mini-value">{pick_label}</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
 
         subcol1, subcol2, subcol3 = st.columns(3)
 
@@ -699,14 +827,11 @@ if selected_player:
                 f"""
                 <div class="mini-card">
                     <div class="mini-title">Games Used</div>
-                    <div class="mini-value">{result['games_used']}</div>
+                    <div class="mini-value">{games_used}</div>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
-
-        over_prob = result.get("over_prob")
-        under_prob = result.get("under_prob")
 
         if over_prob is not None and under_prob is not None:
             prob_col1, prob_col2 = st.columns(2)
@@ -773,8 +898,6 @@ if selected_player:
 
         team_info = result.get("team_info")
         if team_info:
-            st.caption(
-                f"Team Context: {team_info}"
-            )
+            st.caption(f"Team Context: {team_info}")
 
 st.markdown("</div>", unsafe_allow_html=True)
