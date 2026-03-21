@@ -1190,6 +1190,7 @@ if selected_player:
             matchup = today_game_info["matchup"]
             game_date = today_game_info["date"]
             game_time = today_game_info["time"]
+            st.caption(f"Debug game_time from scoreboard: {game_time}")
             live_game_id = today_game_info.get("game_id")
 
             live_status_text = str(game_time).lower()
@@ -1591,7 +1592,7 @@ if selected_player:
             </div>
         """
         
-        if live_points is not None:
+        if live_points is not None or live_fgm is not None or live_minutes is not None:
             game_info_html += f"""
         <div class="summary-strip" style="margin-top: 14px;">
         <div class="summary-item">
