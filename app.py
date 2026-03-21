@@ -975,12 +975,20 @@ def update_all_pending_sheet_results():
             logged_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
             sheet_row_num = idx + 2
-            sheet.update_cell(sheet_row_num, col_map["final_points"], str(final_points))
-            sheet.update_cell(sheet_row_num, col_map["line_result"], line_result)
-            sheet.update_cell(sheet_row_num, col_map["model_pick"], model_pick)
-            sheet.update_cell(sheet_row_num, col_map["model_result"], model_result)
-            sheet.update_cell(sheet_row_num, col_map["result_logged_at"], logged_at)
+
+            sheet.update(
+                range_name=f"G{sheet_row_num}:K{sheet_row_num}",
+                values=[[
+                    str(final_points),
+                    line_result,
+                    model_pick,
+                    model_result,
+                    logged_at
+                ]]
+            )
+
             updated_count += 1
+            time.sleep(1)A
 
         except Exception as e:
             st.error(f"Google Sheets logging failed: {e}")
