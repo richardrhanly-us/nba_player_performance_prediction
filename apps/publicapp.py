@@ -23,6 +23,7 @@ from src.shared_app import (
 )
 
 
+
 st.set_page_config(
     page_title="NBA Points Prop Predictor",
     page_icon="🏀",
@@ -32,6 +33,78 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+
+
+    .model-card {
+        border-radius: 18px;
+        padding: 18px 18px 14px 18px;
+        margin-top: 4px;
+        margin-bottom: 16px;
+    }
+
+    .model-title {
+        font-size: 1.15rem;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        margin-bottom: 14px;
+        color: white;
+        text-shadow: 0 0 6px rgba(255,255,255,0.25);
+    }
+
+    .model-subtitle {
+        font-size: 0.75rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        opacity: 0.7;
+        margin-bottom: 10px;
+        color: #e2e8f0;
+    }
+
+    .model-main {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 14px;
+    }
+
+    .model-stat {
+        border-radius: 14px;
+        padding: 14px 16px;
+    }
+
+    .model-stat-label {
+        font-size: 0.75rem;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    .model-stat-value {
+        color: #ffffff;
+        font-size: 1.15rem;
+        font-weight: 900;
+    }
+
+    .pick-banner {
+        margin-top: 16px;
+        border-radius: 14px;
+        padding: 14px 16px;
+        font-size: 1.05rem;
+        font-weight: 900;
+        text-align: center;
+        letter-spacing: 0.05em;
+        width: 100%;
+        display: block;
+        box-sizing: border-box;
+    }
+
+    .small-note {
+        color: #94a3b8;
+        font-size: 0.84rem;
+        margin-top: 10px;
+    }
+    
+    
     .stApp {
         background: linear-gradient(180deg, #081120 0%, #0f172a 100%);
         color: #f8fafc;
@@ -165,6 +238,62 @@ def safe_live_display(value, fallback="N/A"):
         return fallback
     return str(value)
 
+
+def hex_to_rgba(hex_color: str, alpha: float) -> str:
+    hex_color = hex_color.lstrip("#")
+    if len(hex_color) != 6:
+        return f"rgba(56,189,248,{alpha})"
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+    return f"rgba({r}, {g}, {b}, {alpha})"
+
+
+TEAM_THEMES = {
+    "ATL": {"primary": "#E03A3E", "secondary": "#C1D32F"},
+    "BOS": {"primary": "#007A33", "secondary": "#BA9653"},
+    "BKN": {"primary": "#000000", "secondary": "#FFFFFF"},
+    "CHA": {"primary": "#1D1160", "secondary": "#00788C"},
+    "CHI": {"primary": "#CE1141", "secondary": "#000000"},
+    "CLE": {"primary": "#860038", "secondary": "#FDBB30"},
+    "DAL": {"primary": "#00538C", "secondary": "#B8C4CA"},
+    "DEN": {"primary": "#0E2240", "secondary": "#FEC524"},
+    "DET": {"primary": "#C8102E", "secondary": "#1D42BA"},
+    "GSW": {"primary": "#1D428A", "secondary": "#FFC72C"},
+    "HOU": {"primary": "#CE1141", "secondary": "#C4CED4"},
+    "IND": {"primary": "#002D62", "secondary": "#FDBB30"},
+    "LAC": {"primary": "#C8102E", "secondary": "#1D428A"},
+    "LAL": {"primary": "#552583", "secondary": "#FDB927"},
+    "MEM": {"primary": "#5D76A9", "secondary": "#12173F"},
+    "MIA": {"primary": "#98002E", "secondary": "#F9A01B"},
+    "MIL": {"primary": "#00471B", "secondary": "#EEE1C6"},
+    "MIN": {"primary": "#0C2340", "secondary": "#236192"},
+    "NOP": {"primary": "#0C2340", "secondary": "#C8102E"},
+    "NYK": {"primary": "#006BB6", "secondary": "#F58426"},
+    "OKC": {"primary": "#007AC1", "secondary": "#EF3B24"},
+    "ORL": {"primary": "#0077C0", "secondary": "#C4CED4"},
+    "PHI": {"primary": "#006BB6", "secondary": "#ED174C"},
+    "PHX": {"primary": "#1D1160", "secondary": "#E56020"},
+    "POR": {"primary": "#E03A3E", "secondary": "#000000"},
+    "SAC": {"primary": "#5A2D81", "secondary": "#63727A"},
+    "SAS": {"primary": "#000000", "secondary": "#C4CED4"},
+    "TOR": {"primary": "#CE1141", "secondary": "#000000"},
+    "UTA": {"primary": "#002B5C", "secondary": "#F9A01B"},
+    "WAS": {"primary": "#002B5C", "secondary": "#E31837"}
+}
+
+
+def get_team_theme(team_abbr: str):
+    return TEAM_THEMES.get(team_abbr, {"primary": "#38bdf8", "secondary": "#60a5fa"})
+
+
+def get_pick_label(edge):
+    abs_edge = abs(edge)
+    if abs_edge < 1.5:
+        return "No Bet", "neutral"
+    if abs_edge < 3.0:
+        return ("Lean Over", "over") if edge > 0 else ("Lean Under", "under")
+    return ("Strong Over", "over") if edge > 0 else ("Strong Under", "under")
 
 @st.cache_data(ttl=120)
 def build_prediction(player_name, sportsbook_line):
@@ -378,10 +507,131 @@ if selected_player:
     else:
         col1, col2, col3 = st.columns(3)
 
+        player_info_df = get_player_info_df(actual_name_to_id[result["actual_name"]])
+
+        team_abbr = None
+        if player_info_df is not None and not player_info_df.empty and "TEAM_ABBREVIATION" in player_info_df.columns:
+            try:
+                team_abbr = player_info_df.iloc[0]["TEAM_ABBREVIATION"]
+            except Exception:
+                team_abbr = None
+
+        team_theme = get_team_theme(team_abbr or "")
+        primary = team_theme["primary"]
+        secondary = team_theme["secondary"]
+
+        model_bg = (
+            f"linear-gradient(135deg, "
+            f"{hex_to_rgba(primary, 0.35)} 0%, "
+            f"{hex_to_rgba(secondary, 0.25)} 50%, "
+            f"rgba(15, 23, 42, 0.95) 100%)"
+        )
+        model_border = primary
+        model_glow = hex_to_rgba(primary, 0.28)
+        model_stat_bg = "rgba(255, 255, 255, 0.06)"
+        model_stat_border = hex_to_rgba(secondary, 0.32)
+        model_label_color = "#cbd5e1"
+
         predicted_points = result["predicted_points"]
         edge = result["edge"]
-        season_avg = result["season_avg"]
-        last5_avg = result["last5_avg"]
+        over_prob = result.get("over_prob")
+        under_prob = result.get("under_prob")
+
+        if edge is not None:
+            pick_text, pick_kind = get_pick_label(edge)
+        else:
+            pick_text, pick_kind = "No Posted Line", "neutral"
+
+        if pick_kind == "over":
+            pick_bg = "rgba(34,197,94,0.25)"
+            pick_border = "#22c55e"
+            pick_text_color = "#22c55e"
+        elif pick_kind == "under":
+            pick_bg = "rgba(239,68,68,0.25)"
+            pick_border = "#ef4444"
+            pick_text_color = "#ef4444"
+        else:
+            pick_bg = "rgba(148,163,184,0.12)"
+            pick_border = "#94a3b8"
+            pick_text_color = "#e5e7eb"
+
+        probability_text = "N/A"
+        if over_prob is not None and under_prob is not None:
+            probability_text = f"O {over_prob * 100:.1f}% / U {under_prob * 100:.1f}%"
+
+        interpretation_text = ""
+        if edge is None:
+            interpretation_text = ""
+        elif abs(edge) < 1.5:
+            interpretation_text = (
+                f"The model projects {predicted_points:.2f} points against a line of {sportsbook_line:.1f}, "
+                f"which is too close to call confidently."
+            )
+        else:
+            interpretation_text = (
+                f"The model projects a {over_prob:.0%} chance of the over hitting compared to "
+                f"{under_prob:.0%} for the under."
+            )
+
+        st.markdown(
+            f"""
+            <div class="model-card" style="
+                background: {model_bg};
+                border: 2px solid {hex_to_rgba(model_border, 0.95)};
+                box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 0 22px {model_glow};
+            ">
+                <div class="model-title">{result["actual_name"]}</div>
+                <div class="model-subtitle">Model Output</div>
+
+                <div class="model-main">
+                    <div class="model-stat" style="
+                        background: {model_stat_bg};
+                        border: 1px solid {model_stat_border};
+                    ">
+                        <div class="model-stat-label" style="color: {model_label_color};">Predicted Points</div>
+                        <div class="model-stat-value">{predicted_points:.2f}</div>
+                    </div>
+
+                    <div class="model-stat" style="
+                        background: {model_stat_bg};
+                        border: 1px solid {model_stat_border};
+                    ">
+                        <div class="model-stat-label" style="color: {model_label_color};">Sportsbook Line</div>
+                        <div class="model-stat-value">{sportsbook_line:.1f}</div>
+                    </div>
+
+                    <div class="model-stat" style="
+                        background: {model_stat_bg};
+                        border: 1px solid {model_stat_border};
+                    ">
+                        <div class="model-stat-label" style="color: {model_label_color};">Model Edge</div>
+                        <div class="model-stat-value">{edge:+.2f}</div>
+                    </div>
+
+                    <div class="model-stat" style="
+                        background: {model_stat_bg};
+                        border: 1px solid {model_stat_border};
+                    ">
+                        <div class="model-stat-label" style="color: {model_label_color};">Probability Split</div>
+                        <div class="model-stat-value">{probability_text}</div>
+                    </div>
+                </div>
+
+                <div class="small-note">{interpretation_text}</div>
+
+                <div class="pick-banner" style="
+                    background: {pick_bg};
+                    border: 2px solid {pick_border};
+                    color: {pick_text_color};
+                ">
+                    {pick_text}
+                </div>
+
+                <div class="small-note">Trained regression model output compared against the current sportsbook line.</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
         with col1:
             st.markdown(
