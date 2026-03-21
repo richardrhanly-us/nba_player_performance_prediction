@@ -1481,9 +1481,41 @@ try:
     line_source = "Manual"
     game_available_in_feed = False
 
-    
-    else:
+    player_info = get_player_info_df(player_id)
 
+    nba_data_available = True
+    nba_data_message = ""
+
+    if player_info is None or player_info.empty:
+        nba_data_available = False
+        nba_data_message = "NBA player data is temporarily unavailable. Sportsbook info may still load, but model and game details are paused."
+        team_id = None
+        team_abbr = None
+    else:
+        team_id = int(player_info.loc[0, "TEAM_ID"])
+        team_abbr = player_info.loc[0, "TEAM_ABBREVIATION"]
+        team_theme = get_team_theme(team_abbr)
+
+    if not nba_data_available:
+        st.warning(nba_data_message)
+
+        st.markdown("""
+        <div class="section-card">
+            <div class="section-title">Model Output</div>
+            <div class="small-note">
+                Prediction data is temporarily unavailable because the NBA stats service did not respond.
+            </div>
+        </div>
+
+        <div class="section-card">
+            <div class="section-title">Game Info</div>
+            <div class="small-note">
+                Live game and player details are temporarily unavailable.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    else:
         primary = team_theme["primary"]
         secondary = team_theme["secondary"]
 
@@ -1577,46 +1609,32 @@ try:
             except Exception:
                 sportsbook_line = None
 
+        update_text = book_updated if book_updated else "N/A"
 
-    update_text = book_updated if book_updated else "N/A"
-    
-    
-        player_info = get_player_info_df(player_id)
-    
-        nba_data_available = True
-        nba_data_message = ""
-    
-        if player_info is None or player_info.empty:
-            nba_data_available = False
-            nba_data_message = "NBA player data is temporarily unavailable. Sportsbook info may still load, but model and game details are paused."
-            team_id = None
-            team_abbr = None
-        else:
-            team_id = int(player_info.loc[0, "TEAM_ID"])
-            team_abbr = player_info.loc[0, "TEAM_ABBREVIATION"]
-            team_theme = get_team_theme(team_abbr)
-    
-        if not nba_data_available:
-            st.warning(nba_data_message)
-    
-            st.markdown(f"""
-            <div class="section-card">
-                <div class="section-title">Model Output</div>
-                <div class="small-note">
-                    Prediction data is temporarily unavailable because the NBA stats service did not respond.
-                </div>
-            </div>
-    
-            <div class="section-card">
-                <div class="section-title">Game Info</div>
-                <div class="small-note">
-                    Live game and player details are temporarily unavailable.
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+        st.markdown(f"""
+<div class="sportsbook-compact">
+    <div class="sportsbook-compact-grid">
+        <div class="sportsbook-compact-item">
+            <div class="sportsbook-compact-label">Line</div>
+            <div class="sportsbook-compact-value">{f"{sportsbook_line:.1f}" if sportsbook_line is not None else "N/A"}</div>
+        </div>
+        <div class="sportsbook-compact-item">
+            <div class="sportsbook-compact-label">Prices</div>
+            <div class="sportsbook-compact-value">O {american_odds_text(over_price)} / U {american_odds_text(under_price)}</div>
+        </div>
+        <div class="sportsbook-compact-item">
+            <div class="sportsbook-compact-label">Book</div>
+            <div class="sportsbook-compact-value">{book_name}</div>
+        </div>
+        <div class="sportsbook-compact-item">
+            <div class="sportsbook-compact-label">Source</div>
+            <div class="sportsbook-compact-value">{line_source}</div>
+        </div>
+    </div>
+    <div class="sportsbook-compact-note">Last update: {update_text}</div>
+</div>
+""", unsafe_allow_html=True)
 
-
-        
         default_line = sportsbook_line if sportsbook_line is not None else 20.5
 
         col_line, col_toggle = st.columns([4, 1])
@@ -1913,6 +1931,15 @@ try:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+        st.dataframe(
+            recent_games[["GAME_DATE", "MATCHUP", "PTS", "MIN", "FGA", "FTA"]],
+            use_container_width=True,
+            hide_index=True
+        )
+
+except Exception as e:
+    st.error(f"Something went wrong: {e}")
 
         st.dataframe(
             recent_games[["GAME_DATE", "MATCHUP", "PTS", "MIN", "FGA", "FTA"]],
