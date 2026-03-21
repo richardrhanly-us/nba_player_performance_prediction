@@ -19,14 +19,36 @@ BOOKMAKER_KEY = "draftkings"
 EDGE_THRESHOLD = 3.0
 
 
-def get_gsheet():
+def get_gsheet_client():
     service_account_info = json.loads(os.environ["GCP_SERVICE_ACCOUNT_JSON"])
     creds = Credentials.from_service_account_info(
         service_account_info,
         scopes=SCOPES
     )
-    client = gspread.authorize(creds)
+    return gspread.authorize(creds)
+
+
+def get_gsheet():
+    client = get_gsheet_client()
     return client.open_by_key(SHEET_KEY).sheet1
+
+
+def get_top_plays_live_sheet():
+    client = get_gsheet_client()
+    return client.open_by_key(SHEET_KEY).worksheet("Top Plays Live")
+
+
+def update_top_plays_live_sheet(df):
+    sheet = get_top_plays_live_sheet()
+
+    sheet.clear()
+
+    if df is None or df.empty:
+        sheet.update("A1", [["No data available"]])
+        return
+
+    data = [df.columns.tolist()] + df.values.tolist()
+    sheet.update("A1", data)
 
 
 def normalize_name(name: str) -> str:
@@ -379,6 +401,7 @@ def main():
     props_df = fetch_all_today_player_props(odds_api_key, BOOKMAKER_KEY)
     if props_df.empty:
         print("No props found.", flush=True)
+        update_top_plays_live_sheet(pd.DataFrame())
         return
 
     print(f"Props found for scoring: {len(props_df)}", flush=True)
@@ -389,6 +412,7 @@ def main():
 
     gamelog_cache = {}
     retry_rows = []
+    scored_rows = []
 
     for i, (_, row) in enumerate(props_df.iterrows(), start=1):
         print(
@@ -444,6 +468,19 @@ def main():
 
         model_pick = "OVER" if predicted_points > line else "UNDER"
         game_date = format_event_game_date(row["commence_time"])
+
+        scored_rows.append({
+            "PLAYER_NAME": actual_name,
+            "sportsbook": row["bookmaker"],
+            "sportsbook_line": line,
+            "predicted_points": round(predicted_points, 2),
+            "edge": round(edge, 2),
+            "model_pick": model_pick,
+            "home_team": row["home_team"],
+            "away_team": row["away_team"],
+            "commence_time": row["commence_time"],
+            "last_update": row["last_update"]
+        })
 
         if already_logged(records_df, actual_name, game_date, row["bookmaker"], line):
             print("  Skipped: already logged", flush=True)
@@ -518,6 +555,19 @@ def main():
             model_pick = "OVER" if predicted_points > line else "UNDER"
             game_date = format_event_game_date(row_dict["commence_time"])
 
+            scored_rows.append({
+                "PLAYER_NAME": actual_name,
+                "sportsbook": row_dict["bookmaker"],
+                "sportsbook_line": line,
+                "predicted_points": round(predicted_points, 2),
+                "edge": round(edge, 2),
+                "model_pick": model_pick,
+                "home_team": row_dict["home_team"],
+                "away_team": row_dict["away_team"],
+                "commence_time": row_dict["commence_time"],
+                "last_update": row_dict["last_update"]
+            })
+
             if already_logged(records_df, actual_name, game_date, row_dict["bookmaker"], line):
                 print("  Retry skipped: already logged", flush=True)
                 continue
@@ -539,6 +589,17 @@ def main():
                 flush=True
             )
             time.sleep(0.5)
+
+    if scored_rows:
+        top_df = pd.DataFrame(scored_rows)
+        top_df["abs_edge"] = top_df["edge"].abs()
+        top_df = top_df.sort_values("abs_edge", ascending=False).drop(columns=["abs_edge"]).head(15).copy()
+
+        print(f"Writing {len(top_df)} top plays to Top Plays Live...", flush=True)
+        update_top_plays_live_sheet(top_df)
+    else:
+        print("No scored rows available for Top Plays Live.", flush=True)
+        update_top_plays_live_sheet(pd.DataFrame())
 
     print(f"Done. Logged {logged_count} top plays.", flush=True)
 
