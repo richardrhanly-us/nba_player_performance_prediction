@@ -20,7 +20,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pandas gspread google-auth nba_api requests joblib scipy scikit-learn
+          pip install pandas gspread google-auth nba_api requests joblib scipy scikit-learn==1.6.1
 
       - name: Load top plays
         env:
