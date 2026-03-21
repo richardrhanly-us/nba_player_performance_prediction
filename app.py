@@ -34,31 +34,47 @@ from nba_api.stats.endpoints import (
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 
-def get_live_player_stats(game_id, player_id):
+def get_live_player_stats(game_id, player_id, player_name):
     try:
-        box = boxscoretraditionalv2.BoxScoreTraditionalV2(game_id=game_id)
-        df = box.player_stats.get_data_frame()
+        box = run_with_retry(
+            lambda: boxscoretraditionalv2.BoxScoreTraditionalV2(game_id=str(game_id))
+        )
+        df = box.player_stats.get_data_frame().copy()
 
-        # 🔥 normalize types
-        df["PLAYER_ID"] = df["PLAYER_ID"].astype(int)
+        if df.empty:
+            return None
 
-        # 🔥 debug fallback: match by name if needed
-        row = df[df["PLAYER_ID"] == int(player_id)]
+        if "PLAYER_ID" in df.columns:
+            df["PLAYER_ID"] = pd.to_numeric(df["PLAYER_ID"], errors="coerce")
+
+        row = pd.DataFrame()
+
+        if "PLAYER_ID" in df.columns:
+            row = df[df["PLAYER_ID"] == int(player_id)]
+
+        if row.empty and "PLAYER_NAME" in df.columns:
+            row = df[df["PLAYER_NAME"].astype(str).str.lower() == str(player_name).lower()]
 
         if row.empty:
+            st.warning(f"Live box score found, but no row matched for {player_name}.")
             return None
 
         row = row.iloc[0]
 
+        pts = pd.to_numeric(row.get("PTS"), errors="coerce")
+        fgm = pd.to_numeric(row.get("FGM"), errors="coerce")
+        fga = pd.to_numeric(row.get("FGA"), errors="coerce")
+        minutes = row.get("MIN", "0")
+
         return {
-            "pts": int(row["PTS"]),
-            "fgm": int(row["FGM"]),
-            "fga": int(row["FGA"]),
-            "minutes": str(row["MIN"])
+            "pts": int(pts) if pd.notna(pts) else 0,
+            "fgm": int(fgm) if pd.notna(fgm) else 0,
+            "fga": int(fga) if pd.notna(fga) else 0,
+            "minutes": str(minutes)
         }
 
     except Exception as e:
-        print("LIVE STAT ERROR:", e)
+        st.error(f"Live stat error: {e}")
         return None
 
 
@@ -1170,7 +1186,7 @@ if selected_player:
                 st_autorefresh(interval=10000, key=f"live_refresh_{live_game_id}")
 
                 if live_game_id:
-                    live_player_stats = get_live_player_stats(live_game_id, player_id)
+                    live_player_stats = get_live_player_stats(live_game_id, player_id, selected_player)
                     if live_player_stats:
                         live_points = live_player_stats["pts"]
                         live_fgm = live_player_stats["fgm"]
@@ -1189,7 +1205,6 @@ if selected_player:
                         live_fga = live_player_stats["fga"]
                         live_minutes = live_player_stats["minutes"]
 
-                live_clock = "Final"
 
             else:
                 game_status = "Game today"
@@ -1530,7 +1545,6 @@ if selected_player:
             '</div>'
         ])
         st.markdown(model_html, unsafe_allow_html=True)
-
         game_info_html = f"""
         <div class="section-card">
             <div class="section-title">Game Info</div>
