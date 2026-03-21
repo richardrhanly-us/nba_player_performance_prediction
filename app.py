@@ -575,6 +575,43 @@ def get_gsheet():
     client = gspread.authorize(creds)
     return client.open_by_key("1uhjV_Si-qcILfNJbKZrD52y4JnT_GvqQ0hzN7POekQM").sheet1
 
+@st.cache_resource
+def get_strong_plays_sheet():
+    creds = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=SCOPES
+    )
+    client = gspread.authorize(creds)
+    return client.open_by_key("1uhjV_Si-qcILfNJbKZrD52y4JnT_GvqQ0hzN7POekQM").worksheet("Strong Plays")
+
+
+@st.cache_data(ttl=120)
+def get_strong_plays_summary():
+    sheet = get_strong_plays_sheet()
+    values = sheet.get_all_values()
+
+    if not values or len(values) < 2:
+        return None, 0
+
+    headers = values[0]
+    rows = values[1:]
+    df = pd.DataFrame(rows, columns=headers)
+
+    if "bet_status" not in df.columns:
+        return None, 0
+
+    df["bet_status"] = df["bet_status"].astype(str).str.strip().str.upper()
+    graded_df = df[df["bet_status"].isin(["WIN", "LOSS"])].copy()
+
+    total_games = len(graded_df)
+    if total_games == 0:
+        return None, 0
+
+    wins = len(graded_df[graded_df["bet_status"] == "WIN"])
+    win_rate = (wins / total_games) * 100
+
+    return win_rate, total_games
+
 
 def append_to_sheet(player_name, game_date, line, sportsbook, last_update, predicted_points="", model_pick=""):
     sheet = get_gsheet()
@@ -1380,8 +1417,50 @@ selected_book = st.selectbox(
 )
 
 odds_api_key = os.getenv("ODDS_API_KEY")
+top_games_win_rate, top_games_total = get_strong_plays_summary()
 
 st.markdown('<div class="section-card"><div class="section-title">Top Plays Today</div>', unsafe_allow_html=True)
+
+if top_games_win_rate is not None:
+    st.markdown(
+        f"""
+        <div style="
+            background: rgba(15,23,42,0.78);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+        ">
+            <div style="color: #94a3b8; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px;">
+                Win Rate for Top Games
+            </div>
+            <div style="color: #f8fafc; font-size: 1.05rem; font-weight: 800;">
+                {top_games_win_rate:.1f}% <span style="color: #94a3b8; font-size: 0.9rem; font-weight: 600;">({top_games_total} graded games)</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+else:
+    st.markdown(
+        """
+        <div style="
+            background: rgba(15,23,42,0.78);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+        ">
+            <div style="color: #94a3b8; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px;">
+                Win Rate for Top Games
+            </div>
+            <div style="color: #f8fafc; font-size: 1.05rem; font-weight: 800;">
+                N/A <span style="color: #94a3b8; font-size: 0.9rem; font-weight: 600;">(no graded games yet)</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 if odds_api_key:
     try:
