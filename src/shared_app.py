@@ -11,6 +11,7 @@ from datetime import datetime
 from google.oauth2.service_account import Credentials
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog, commonplayerinfo, scoreboardv2
+from nba_api.live.nba.endpoints import boxscore as live_boxscore
 
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -308,7 +309,6 @@ def get_scoreboard_for_date(game_date=None):
     except Exception:
         return []
 
-
 def get_live_player_stats(player_name):
     actual_name_to_id, normalized_to_actual = load_active_players()
     actual_name = normalized_to_actual.get(normalize_name(player_name), player_name)
@@ -316,34 +316,81 @@ def get_live_player_stats(player_name):
     if not player_id:
         return None
 
-    df = get_player_gamelog_df(player_id, CURRENT_SEASON)
-    if df is None or df.empty:
-        return None
-
-    latest = df.iloc[0] if "GAME_DATE" not in df.columns else df.sort_values("GAME_DATE", ascending=False).iloc[0]
-
-    return {
-        "points": latest.get("PTS", "N/A"),
-        "minutes": latest.get("MIN", "N/A"),
-        "game_status": "Recent Game"
-    }
-
-
-def get_team_game_info(player_name):
-    actual_name_to_id, normalized_to_actual = load_active_players()
-    actual_name = normalized_to_actual.get(normalize_name(player_name), player_name)
-    player_id = actual_name_to_id.get(actual_name)
-    if not player_id:
-        return None
-
     info_df = get_player_info_df(player_id)
-    if info_df.empty:
+    if info_df is None or info_df.empty:
         return None
 
     try:
-        team_name = info_df.iloc[0].get("TEAM_NAME", "")
-        position = info_df.iloc[0].get("POSITION", "")
-        return f"{team_name} | {position}"
+        team_id = int(info_df.iloc[0]["TEAM_ID"])
+    except Exception:
+        return None
+
+    try:
+        eastern_now = pd.Timestamp.now(tz="US/Eastern")
+        game_date = eastern_now.strftime("%m/%d/%Y")
+        board_frames = get_scoreboard_for_date(game_date)
+    except Exception:
+        return None
+
+    if not board_frames or len(board_frames) < 2:
+        return None
+
+    try:
+        game_header = board_frames[0]
+        line_score = board_frames[1]
+    except Exception:
+        return None
+
+    if game_header is None or game_header.empty:
+        return None
+
+    team_game = game_header[
+        (game_header["HOME_TEAM_ID"] == team_id) |
+        (game_header["VISITOR_TEAM_ID"] == team_id)
+    ]
+
+    if team_game.empty:
+        return None
+
+    game = team_game.iloc[0]
+    game_id = str(game["GAME_ID"])
+    game_status_text = str(game.get("GAME_STATUS_TEXT", "Live")).strip()
+
+    try:
+        live = live_boxscore.BoxScore(game_id=game_id)
+        data = live.get_dict()
+
+        players_live = []
+        players_live.extend(data.get("game", {}).get("homeTeam", {}).get("players", []))
+        players_live.extend(data.get("game", {}).get("awayTeam", {}).get("players", []))
+
+        matched = None
+
+        for p in players_live:
+            if str(p.get("personId", "")) == str(player_id):
+                matched = p
+                break
+
+        if matched is None:
+            for p in players_live:
+                full_name = f"{p.get('firstName', '').strip()} {p.get('familyName', '').strip()}".strip()
+                if full_name.lower() == actual_name.lower():
+                    matched = p
+                    break
+
+        if matched is None:
+            return None
+
+        stats = matched.get("statistics", {})
+        points = stats.get("points", 0)
+        minutes = stats.get("minutes", "0")
+
+        return {
+            "points": points if str(points).strip() != "" else 0,
+            "minutes": str(minutes) if minutes is not None else "0",
+            "game_status": game_status_text
+        }
+
     except Exception:
         return None
 
