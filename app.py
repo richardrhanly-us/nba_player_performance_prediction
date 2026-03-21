@@ -629,38 +629,58 @@ def run_with_retry(func, retries=3, delay=1.5, fallback=None):
 
 
 def get_player_info_df(player_id):
-    return run_with_retry(
-        lambda: commonplayerinfo.CommonPlayerInfo(
-            player_id=player_id,
-            timeout=20
-        ).get_data_frames()[0]
-    )
+    try:
+        return run_with_retry(
+            lambda: commonplayerinfo.CommonPlayerInfo(
+                player_id=player_id,
+                timeout=20
+            ).get_data_frames()[0],
+            retries=2,
+            delay=1.5
+        )
+    except Exception:
+        return None
 
 
 def get_player_gamelog_df(player_id, season):
-    return run_with_retry(
-        lambda: playergamelog.PlayerGameLog(
-            player_id=player_id,
-            season=season,
-            timeout=20
-        ).get_data_frames()[0]
-    )
+    try:
+        return run_with_retry(
+            lambda: playergamelog.PlayerGameLog(
+                player_id=player_id,
+                season=season,
+                timeout=20
+            ).get_data_frames()[0],
+            retries=2,
+            delay=1.5
+        )
+    except Exception:
+        return pd.DataFrame()
 
 
 def get_scoreboard_for_date(target_date_str):
-    return run_with_retry(
-        lambda: scoreboardv2.ScoreboardV2(
-            game_date=target_date_str,
-            timeout=20
-        ),
-        fallback=None
-    )
-
+    try:
+        return run_with_retry(
+            lambda: scoreboardv2.ScoreboardV2(
+                game_date=target_date_str,
+                timeout=20
+            ),
+            retries=2,
+            delay=1.5
+        )
+    except Exception:
+        return None
 
 def get_team_game_info(team_id, team_abbr, target_date_str):
     board = get_scoreboard_for_date(target_date_str)
+
+    if board is None:
+        return None
+
     game_header = board.game_header.get_data_frame()
     line_score = board.line_score.get_data_frame()
+
+    if game_header.empty or line_score.empty:
+        return None
 
     team_game = game_header[
         (game_header["HOME_TEAM_ID"] == team_id) |
@@ -1235,7 +1255,7 @@ try:
 
     df = get_player_gamelog_df(player_id, CURRENT_SEASON)
     if df.empty:
-        st.warning("No game log found for this player yet.")
+        st.warning("NBA game log is temporarily unavailable. Please try again in a moment.")
         st.stop()
 
     df["PLAYER_NAME"] = selected_player
