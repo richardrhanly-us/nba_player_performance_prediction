@@ -1189,15 +1189,15 @@ if selected_player:
                 st_autorefresh(interval=10000, key=f"live_refresh_{live_game_id}")
 
                 if live_game_id:
-                live_player_stats, live_debug = get_live_player_stats(live_game_id, player_id, selected_player)
-                
-                if live_player_stats:
-                    live_points = live_player_stats["pts"]
-                    live_fgm = live_player_stats["fgm"]
-                    live_fga = live_player_stats["fga"]
-                    live_minutes = live_player_stats["minutes"]
-                else:
-                    st.warning(f"Live stats debug: {live_debug}")
+                    live_player_stats, live_debug = get_live_player_stats(live_game_id, player_id, selected_player)
+                    
+                    if live_player_stats:
+                        live_points = live_player_stats["pts"]
+                        live_fgm = live_player_stats["fgm"]
+                        live_fga = live_player_stats["fga"]
+                        live_minutes = live_player_stats["minutes"]
+                    else:
+                        st.warning(f"Live stats debug: {live_debug}")
             st.caption(f"Debug game id: {live_game_id} | player id: {player_id} | player: {selected_player}")
 
 
