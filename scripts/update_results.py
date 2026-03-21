@@ -55,12 +55,14 @@ def get_player_id_by_name_map():
 
 def get_final_points_from_gamelog(player_id, game_date):
     try:
+        print(f"  Pulling gamelog for player_id={player_id} date={game_date}", flush=True)
         df = playergamelog.PlayerGameLog(
             player_id=player_id,
             season=CURRENT_SEASON,
-            timeout=10
+            timeout=12
         ).get_data_frames()[0]
-    except Exception:
+    except Exception as e:
+        print(f"  Gamelog fetch failed: {e}", flush=True)
         return None
 
     if df.empty:
@@ -78,8 +80,11 @@ def get_final_points_from_gamelog(player_id, game_date):
 
 
 def update_all_pending_sheet_results():
+    print("Loading sheet...", flush=True)
     records_df, sheet = get_sheet_records_df()
+
     if records_df.empty:
+        print("Sheet is empty.", flush=True)
         return 0, 0
 
     required_cols = [
@@ -91,10 +96,14 @@ def update_all_pending_sheet_results():
         if col not in records_df.columns:
             raise ValueError(f"Missing required column: {col}")
 
+    print("Loading active players map...", flush=True)
     player_name_map = get_player_id_by_name_map()
 
     updated_count = 0
     checked_count = 0
+
+    pending_rows = records_df[records_df["final_points"].astype(str).str.strip() == ""]
+    print(f"Pending rows found: {len(pending_rows)}", flush=True)
 
     for idx, row in records_df.iterrows():
         if str(row["final_points"]).strip():
@@ -105,17 +114,22 @@ def update_all_pending_sheet_results():
         line_val = safe_float(row["sportsbook_line"])
         predicted_val = safe_float(row["predicted_points"])
 
+        print(f"Processing sheet row {idx + 2}: {player_name} | {game_date}", flush=True)
+
         if not player_name or not game_date or line_val is None or predicted_val is None:
+            print("  Skipped: missing required values", flush=True)
             continue
 
         player_id = player_name_map.get(player_name)
         if not player_id:
+            print("  Skipped: player id not found", flush=True)
             continue
 
         checked_count += 1
 
         final_points = get_final_points_from_gamelog(player_id, game_date)
         if final_points is None:
+            print("  No final points found yet", flush=True)
             continue
 
         model_pick = "OVER" if predicted_val > line_val else "UNDER"
@@ -124,6 +138,7 @@ def update_all_pending_sheet_results():
         logged_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
         sheet_row_num = idx + 2
+        print(f"  Updating row {sheet_row_num} with final_points={final_points}", flush=True)
         sheet.update(
             range_name=f"G{sheet_row_num}:K{sheet_row_num}",
             values=[[
@@ -136,11 +151,11 @@ def update_all_pending_sheet_results():
         )
 
         updated_count += 1
-        time.sleep(1)
+        time.sleep(0.5)
 
     return updated_count, checked_count
 
 
 if __name__ == "__main__":
     updated_count, checked_count = update_all_pending_sheet_results()
-    print(f"Checked {checked_count} pending rows, updated {updated_count} rows.")
+    print(f"Checked {checked_count} pending rows, updated {updated_count} rows.", flush=True)
