@@ -614,7 +614,7 @@ def normalize_sheet_date(value):
         return str(value).strip()
 
 
-def run_with_retry(func, retries=3, delay=1.2):
+def run_with_retry(func, retries=3, delay=1.5, fallback=None):
     last_error = None
     for attempt in range(retries):
         try:
@@ -623,6 +623,8 @@ def run_with_retry(func, retries=3, delay=1.2):
             last_error = e
             if attempt < retries - 1:
                 time.sleep(delay)
+    if fallback is not None:
+        return fallback
     raise last_error
 
 
@@ -630,7 +632,7 @@ def get_player_info_df(player_id):
     return run_with_retry(
         lambda: commonplayerinfo.CommonPlayerInfo(
             player_id=player_id,
-            timeout=10
+            timeout=20
         ).get_data_frames()[0]
     )
 
@@ -640,7 +642,7 @@ def get_player_gamelog_df(player_id, season):
         lambda: playergamelog.PlayerGameLog(
             player_id=player_id,
             season=season,
-            timeout=10
+            timeout=20
         ).get_data_frames()[0]
     )
 
@@ -649,8 +651,9 @@ def get_scoreboard_for_date(target_date_str):
     return run_with_retry(
         lambda: scoreboardv2.ScoreboardV2(
             game_date=target_date_str,
-            timeout=10
-        )
+            timeout=20
+        ),
+        fallback=None
     )
 
 
@@ -1065,6 +1068,11 @@ try:
     player_id = player_name_map[selected_player]
 
     player_info = get_player_info_df(player_id)
+    
+    if player_info is None or player_info.empty:
+        st.error("Could not load player info from NBA API right now. Try again in a moment.")
+        st.stop()
+    
     team_id = int(player_info.loc[0, "TEAM_ID"])
     team_abbr = player_info.loc[0, "TEAM_ABBREVIATION"]
     team_theme = get_team_theme(team_abbr)
@@ -1091,7 +1099,10 @@ try:
         now_et = now_et - pd.Timedelta(days=1)
 
     today_str = now_et.strftime("%m/%d/%Y")
-    today_game_info = get_team_game_info(team_id, team_abbr, today_str)
+    try:
+        today_game_info = get_team_game_info(team_id, team_abbr, today_str)
+    except Exception:
+        today_game_info = None
 
     live_points = None
     live_fgm = None
