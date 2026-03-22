@@ -813,25 +813,21 @@ try:
             pred_text = f"{pred_val:.2f}" if pd.notna(pred_val) else "N/A"
             edge_text = f"{edge_val:+.2f}" if pd.notna(edge_val) else "N/A"
         
-            card_col, button_col = st.columns([12, 2])
+            st.markdown(
+                f"""
+                <div class="top-play-card">
+                    <div class="top-play-title">{player_name} — {pick} {line_text}</div>
+                    <div class="top-play-sub">{matchup}</div>
+                    <div class="top-play-meta">Projection: {pred_text} | Edge: {edge_text}</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
         
-            with card_col:
-                st.markdown(
-                    f"""
-                    <div class="top-play-card">
-                        <div class="top-play-title">{player_name} — {pick} {line_text}</div>
-                        <div class="top-play-sub">{matchup}</div>
-                        <div class="top-play-meta">Projection: {pred_text} | Edge: {edge_text}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-        
-            with button_col:
-                if st.button("Open", key=f"top_play_open_{i}"):
-                    st.session_state.selected_player_from_top_play = player_name
-                    st.session_state.selected_book_from_top_play = str(book_name).lower()
-                    st.rerun()
+            if st.button(f"Load {player_name}", key=f"top_play_open_{i}"):
+                st.session_state.selected_player_from_top_play = player_name
+                st.session_state.selected_book_from_top_play = str(book_name).lower()
+                st.rerun()
         
         st.markdown('<div class="section-card"><div class="section-title">Top Plays Today</div>', unsafe_allow_html=True)
         display_cols = [
