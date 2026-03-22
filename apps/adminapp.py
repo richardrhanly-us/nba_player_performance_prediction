@@ -2,7 +2,6 @@ import sys
 import os
 import pandas as pd
 import streamlit as st
-import json
 from datetime import datetime
 from google.oauth2.service_account import Credentials
 import gspread
@@ -18,6 +17,10 @@ from src.shared_app import (
     update_all_pending_sheet_results,
     get_top_plays_today_df,
 )
+
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+SHEET_KEY = "1uhjV_Si-qcILfNJbKZrD52y4JnT_GvqQ0hzN7POekQM"
+ADMIN_LOG_SHEET_NAME = "Admin Logs"
 
 
 st.set_page_config(
@@ -110,6 +113,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+
 @st.cache_resource
 def get_gsheet_client():
     creds = Credentials.from_service_account_info(
@@ -126,8 +130,7 @@ def get_or_create_worksheet(sheet_name, rows=1000, cols=20):
     try:
         return workbook.worksheet(sheet_name)
     except gspread.WorksheetNotFound:
-        ws = workbook.add_worksheet(title=sheet_name, rows=rows, cols=cols)
-        return ws
+        return workbook.add_worksheet(title=sheet_name, rows=rows, cols=cols)
 
 
 def ensure_admin_log_sheet():
@@ -161,6 +164,7 @@ def write_admin_log(action, source, status, details=""):
     except Exception as e:
         st.warning(f"Could not write admin log: {e}")
 
+
 def format_last_update(value):
     if value is None:
         return "N/A"
@@ -169,12 +173,6 @@ def format_last_update(value):
     except Exception:
         return str(value)
 
-write_admin_log(
-    action="update_final_results",
-    source="admin_manual",
-    status="success",
-    details="Updated 12 rows"
-)
 
 @st.cache_data(ttl=30)
 def get_admin_logs_df():
@@ -188,9 +186,11 @@ def get_admin_logs_df():
     rows = values[1:]
     return pd.DataFrame(rows, columns=headers)
 
+
 def load_strong_plays_df():
     sheet = get_strong_plays_sheet()
     values = sheet.get_all_values()
+
     if not values or len(values) < 2:
         return pd.DataFrame()
 
@@ -223,6 +223,7 @@ with st.expander("Admin Login", expanded=True):
 if not admin_mode:
     st.stop()
 
+
 st.subheader("Admin Logs")
 
 logs_df = get_admin_logs_df()
@@ -231,7 +232,6 @@ if logs_df.empty:
     st.info("No admin logs yet.")
 else:
     st.dataframe(logs_df.tail(25).iloc[::-1], use_container_width=True, hide_index=True)
-
 
 if st.button("Test Admin Log"):
     write_admin_log(
@@ -242,6 +242,7 @@ if st.button("Test Admin Log"):
     )
     st.cache_data.clear()
     st.success("Test log written.")
+
 
 top_games_win_rate, top_games_total = get_strong_plays_summary()
 health = get_strong_plays_health()
@@ -334,19 +335,46 @@ with tool_col1:
         status_placeholder.info("Checking pending rows and updating final results...")
         try:
             updated_count, checked_count = update_all_pending_sheet_results()
+            write_admin_log(
+                action="update_final_results",
+                source="admin_manual",
+                status="success",
+                details=f"Checked {checked_count} pending rows and updated {updated_count} completed games."
+            )
             status_placeholder.success(
                 f"Done. Checked {checked_count} pending rows and updated {updated_count} completed games."
             )
             st.cache_data.clear()
         except Exception as e:
+            write_admin_log(
+                action="update_final_results",
+                source="admin_manual",
+                status="failed",
+                details=str(e)
+            )
             status_placeholder.error(f"Batch update failed: {e}")
 
 with tool_col2:
     if st.button("Refresh Dashboard Data", use_container_width=True):
-        st.cache_data.clear()
-        st.cache_resource.clear()
-        st.success("Cache cleared. Reloading admin dashboard...")
-        st.rerun()
+        try:
+            write_admin_log(
+                action="refresh_dashboard_data",
+                source="admin_manual",
+                status="success",
+                details="Cleared cache and reran admin dashboard."
+            )
+            st.cache_data.clear()
+            st.cache_resource.clear()
+            st.success("Cache cleared. Reloading admin dashboard...")
+            st.rerun()
+        except Exception as e:
+            write_admin_log(
+                action="refresh_dashboard_data",
+                source="admin_manual",
+                status="failed",
+                details=str(e)
+            )
+            st.error(f"Dashboard refresh failed: {e}")
 
 st.markdown("</div>", unsafe_allow_html=True)
 
