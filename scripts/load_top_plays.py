@@ -591,8 +591,20 @@ def main():
     model_feature_names = list(getattr(model, "feature_names_in_", []))
 
     props_df = fetch_all_today_player_props(odds_api_key, BOOKMAKER_KEY)
+    raw_props_count = len(props_df)
+    
+    if not props_df.empty:
+        props_df = props_df.sort_values(
+            by=["player_name_raw", "last_update"],
+            ascending=[True, False]
+        ).drop_duplicates(
+            subset=["player_name_raw"],
+            keep="first"
+        ).reset_index(drop=True)
+    
     props_count = len(props_df)
-    print(f"[TOP PLAYS] Props found: {props_count}", flush=True)
+    print(f"[TOP PLAYS] Raw props found: {raw_props_count}", flush=True)
+    print(f"[TOP PLAYS] Unique player props after dedupe: {props_count}", flush=True)
 
     if props_df.empty:
         print("[TOP PLAYS] No props found.", flush=True)
