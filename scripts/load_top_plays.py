@@ -11,12 +11,14 @@ from google.oauth2.service_account import Credentials
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog
 
+
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 CURRENT_SEASON = "2025-26"
 SHEET_KEY = "1uhjV_Si-qcILfNJbKZrD52y4JnT_GvqQ0hzN7POekQM"
 
 BOOKMAKER_KEY = "draftkings"
 EDGE_THRESHOLD = 3.0
+TOP_PLAYS_LIMIT = 15
 
 
 def get_gsheet_client():
@@ -40,22 +42,40 @@ def get_top_plays_live_sheet():
 
 def update_top_plays_live_sheet(df):
     sheet = get_top_plays_live_sheet()
-
     sheet.clear()
 
     if df is None or df.empty:
         sheet.update("A1", [["No data available"]])
         return
 
-    data = [df.columns.tolist()] + df.values.tolist()
+    output_df = df.copy()
+
+    preferred_cols = [
+        "PLAYER_NAME",
+        "sportsbook",
+        "sportsbook_line",
+        "predicted_points",
+        "edge",
+        "model_pick",
+        "home_team",
+        "away_team",
+        "commence_time",
+        "last_update",
+    ]
+    output_cols = [col for col in preferred_cols if col in output_df.columns]
+    output_df = output_df[output_cols]
+
+    data = [output_df.columns.tolist()] + output_df.values.tolist()
     sheet.update("A1", data)
 
 
 def normalize_name(name: str) -> str:
     if not name:
         return ""
+
     name = unicodedata.normalize("NFKD", str(name))
     name = "".join(ch for ch in name if not unicodedata.combining(ch))
+
     return (
         name.lower()
         .replace(".", "")
@@ -79,8 +99,10 @@ def safe_float(value):
 def get_sheet_records_df():
     sheet = get_gsheet()
     values = sheet.get_all_values()
+
     if not values or len(values) < 2:
         return pd.DataFrame(), sheet
+
     headers = values[0]
     rows = values[1:]
     return pd.DataFrame(rows, columns=headers), sheet
@@ -102,9 +124,9 @@ def fetch_player_points_market(api_key, event_id, bookmaker_key):
             "regions": "us",
             "markets": "player_points",
             "bookmakers": bookmaker_key,
-            "oddsFormat": "american"
+            "oddsFormat": "american",
         },
-        timeout=20
+        timeout=20,
     )
     resp.raise_for_status()
     return resp.json()
@@ -125,7 +147,7 @@ def fetch_all_today_player_props(api_key, bookmaker_key):
         print(
             f"Reading event {event_idx}/{len(events)}: "
             f"{event.get('away_team', '')} @ {event.get('home_team', '')}",
-            flush=True
+            flush=True,
         )
 
         try:
@@ -138,9 +160,11 @@ def fetch_all_today_player_props(api_key, bookmaker_key):
 
         home_team = event.get("home_team", "")
         away_team = event.get("away_team", "")
+        commence_time = event.get("commence_time", "")
 
         for bookmaker in event_odds.get("bookmakers", []):
             book_title = bookmaker.get("title", "Unknown")
+            book_key = bookmaker.get("key", bookmaker_key)
 
             for market in bookmaker.get("markets", []):
                 if market.get("key") != "player_points":
@@ -163,7 +187,7 @@ def fetch_all_today_player_props(api_key, bookmaker_key):
                             "player_name_raw": player_desc,
                             "line": float(point),
                             "over_price": None,
-                            "under_price": None
+                            "under_price": None,
                         }
 
                     if side == "Over":
@@ -179,10 +203,11 @@ def fetch_all_today_player_props(api_key, bookmaker_key):
                         "player_name_raw": item["player_name_raw"],
                         "line": item["line"],
                         "bookmaker": book_title,
+                        "bookmaker_key": str(book_key).lower(),
                         "last_update": market_last_update,
                         "home_team": home_team,
                         "away_team": away_team,
-                        "commence_time": event.get("commence_time", "")
+                        "commence_time": commence_time,
                     })
 
     if not rows:
@@ -190,7 +215,7 @@ def fetch_all_today_player_props(api_key, bookmaker_key):
 
     df = pd.DataFrame(rows)
     df = df.drop_duplicates(
-        subset=["player_name_raw", "line", "bookmaker"]
+        subset=["player_name_raw", "line", "bookmaker_key", "commence_time"]
     ).reset_index(drop=True)
 
     print(f"Qualified prop rows collected before model scoring: {len(df)}", flush=True)
@@ -304,7 +329,7 @@ def build_player_feature_row(df, player_name):
         "last5_gmsc",
         "last5_usage_proxy",
         "minutes_volatility",
-        "points_volatility"
+        "points_volatility",
     ]
 
     if "last5_3pa" in df.columns:
@@ -333,7 +358,7 @@ def build_player_feature_row(df, player_name):
         "last5_gmsc": latest["last5_gmsc"],
         "last5_usage_proxy": latest["last5_usage_proxy"],
         "minutes_volatility": latest["minutes_volatility"],
-        "points_volatility": latest["points_volatility"]
+        "points_volatility": latest["points_volatility"],
     }
 
     if "last5_3pa" in df_features.columns and pd.notna(latest.get("last5_3pa", None)):
@@ -349,13 +374,13 @@ def already_logged(records_df, player_name, game_date, sportsbook, line):
     for _, row in records_df.iterrows():
         row_player = str(row.get("PLAYER_NAME", "")).strip()
         row_date = str(row.get("GAME_DATE", "")).strip()
-        row_book = str(row.get("sportsbook", "")).strip()
+        row_book = str(row.get("sportsbook", "")).strip().lower()
         row_line = safe_float(row.get("sportsbook_line", ""))
 
         if (
             row_player == player_name
             and row_date == game_date
-            and row_book == sportsbook
+            and row_book == str(sportsbook).strip().lower()
             and row_line == float(line)
         ):
             return True
@@ -385,16 +410,137 @@ def append_to_sheet(sheet, player_name, game_date, line, sportsbook, last_update
         "",
         model_pick,
         "",
-        ""
+        "",
     ]]
 
     sheet.update(range_name=f"A{next_row}:K{next_row}", values=values)
 
 
+def add_scored_row(scored_map, row_dict):
+    key = (
+        row_dict["PLAYER_NAME"],
+        row_dict["sportsbook"],
+        float(row_dict["sportsbook_line"]),
+        row_dict["commence_time"],
+    )
+
+    existing = scored_map.get(key)
+    if existing is None or abs(row_dict["edge"]) > abs(existing["edge"]):
+        scored_map[key] = row_dict
+
+
+def build_top_plays_live_df(scored_map):
+    if not scored_map:
+        return pd.DataFrame()
+
+    top_df = pd.DataFrame(scored_map.values()).copy()
+
+    if top_df.empty:
+        return pd.DataFrame()
+
+    top_df["sportsbook_line"] = pd.to_numeric(top_df["sportsbook_line"], errors="coerce")
+    top_df["predicted_points"] = pd.to_numeric(top_df["predicted_points"], errors="coerce")
+    top_df["edge"] = pd.to_numeric(top_df["edge"], errors="coerce")
+
+    top_df = top_df.dropna(subset=["sportsbook_line", "predicted_points", "edge"])
+    top_df = top_df[top_df["sportsbook_line"] > 0].copy()
+
+    if top_df.empty:
+        return pd.DataFrame()
+
+    top_df["abs_edge"] = top_df["edge"].abs()
+    top_df = top_df.sort_values("abs_edge", ascending=False).drop(columns=["abs_edge"])
+    top_df = top_df.head(TOP_PLAYS_LIMIT).reset_index(drop=True)
+
+    return top_df
+
+
+def process_prop_row(
+    row_data,
+    model,
+    model_feature_names,
+    actual_name_to_id,
+    normalized_to_actual,
+    gamelog_cache,
+):
+    normalized = normalize_name(row_data["player_name_raw"])
+    actual_name = normalized_to_actual.get(normalized)
+
+    if not actual_name:
+        print("  Skipped: no active player match", flush=True)
+        return None, "retry_not_needed"
+
+    player_id = actual_name_to_id.get(actual_name)
+    if not player_id:
+        print("  Skipped: no player id found", flush=True)
+        return None, "retry_not_needed"
+
+    if player_id in gamelog_cache:
+        df = gamelog_cache[player_id]
+        print(f"  Using cached gamelog for {actual_name}", flush=True)
+    else:
+        print(f"  Pulling gamelog for {actual_name}", flush=True)
+        df = get_player_gamelog_df(player_id, CURRENT_SEASON)
+        if not df.empty:
+            gamelog_cache[player_id] = df
+
+    if df.empty:
+        print("  Queued for retry: gamelog unavailable", flush=True)
+        return None, "retry"
+
+    X = build_player_feature_row(df, actual_name)
+    if X is None or X.empty:
+        print("  Skipped: not enough games to build features", flush=True)
+        return None, "retry_not_needed"
+
+    if model_feature_names:
+        X = X.reindex(columns=model_feature_names, fill_value=0)
+
+    predicted_points = float(model.predict(X)[0])
+
+    line = safe_float(row_data["line"])
+    if line is None:
+        print("  Skipped: invalid line", flush=True)
+        return None, "retry_not_needed"
+
+    edge = predicted_points - line
+    if abs(edge) < EDGE_THRESHOLD:
+        print(f"  Skipped: edge {edge:.2f} below threshold {EDGE_THRESHOLD}", flush=True)
+        return None, "retry_not_needed"
+
+    model_pick = "OVER" if predicted_points > line else "UNDER"
+
+    scored_row = {
+        "PLAYER_NAME": actual_name,
+        "sportsbook": str(row_data.get("bookmaker_key", BOOKMAKER_KEY)).lower(),
+        "sportsbook_line": float(line),
+        "predicted_points": round(predicted_points, 2),
+        "edge": round(edge, 2),
+        "model_pick": model_pick,
+        "home_team": row_data.get("home_team", ""),
+        "away_team": row_data.get("away_team", ""),
+        "commence_time": row_data.get("commence_time", ""),
+        "last_update": row_data.get("last_update", ""),
+    }
+
+    append_payload = {
+        "player_name": actual_name,
+        "game_date": format_event_game_date(row_data.get("commence_time", "")),
+        "line": float(line),
+        "sportsbook": str(row_data.get("bookmaker_key", BOOKMAKER_KEY)).lower(),
+        "last_update": row_data.get("last_update", ""),
+        "predicted_points": predicted_points,
+        "model_pick": model_pick,
+        "edge": edge,
+    }
+
+    return (scored_row, append_payload), "success"
+
+
 def main():
     odds_api_key = os.environ["ODDS_API_KEY"]
     model = load_model()
-    model_stats = load_model_stats()
+    load_model_stats()
     actual_name_to_id, normalized_to_actual = load_active_players()
     model_feature_names = list(getattr(model, "feature_names_in_", []))
 
@@ -412,194 +558,132 @@ def main():
 
     gamelog_cache = {}
     retry_rows = []
-    scored_rows = []
+    scored_map = {}
 
     for i, (_, row) in enumerate(props_df.iterrows(), start=1):
+        row_data = row.to_dict()
+
         print(
             f"Evaluating prop {i}/{total_props}: "
-            f"{row['player_name_raw']} | {row['bookmaker']} | {row['line']}",
-            flush=True
+            f"{row_data['player_name_raw']} | {row_data['bookmaker']} | {row_data['line']}",
+            flush=True,
         )
 
-        normalized = normalize_name(row["player_name_raw"])
-        actual_name = normalized_to_actual.get(normalized)
+        result, status = process_prop_row(
+            row_data=row_data,
+            model=model,
+            model_feature_names=model_feature_names,
+            actual_name_to_id=actual_name_to_id,
+            normalized_to_actual=normalized_to_actual,
+            gamelog_cache=gamelog_cache,
+        )
 
-        if not actual_name:
-            print("  Skipped: no active player match", flush=True)
+        if status == "retry":
+            retry_rows.append(row_data)
             continue
 
-        player_id = actual_name_to_id.get(actual_name)
-        if not player_id:
-            print("  Skipped: no player id found", flush=True)
+        if not result:
             continue
 
-        if player_id in gamelog_cache:
-            df = gamelog_cache[player_id]
-            print(f"  Using cached gamelog for {actual_name}", flush=True)
-        else:
-            print(f"  Pulling gamelog for {actual_name}", flush=True)
-            df = get_player_gamelog_df(player_id, CURRENT_SEASON)
-            if not df.empty:
-                gamelog_cache[player_id] = df
+        scored_row, append_payload = result
+        add_scored_row(scored_map, scored_row)
 
-        if df.empty:
-            print("  Queued for retry: gamelog unavailable", flush=True)
-            retry_rows.append(row.to_dict())
-            continue
-
-        X = build_player_feature_row(df, actual_name)
-        if X is None or X.empty:
-            print("  Skipped: not enough games to build features", flush=True)
-            continue
-
-        if model_feature_names:
-            X = X.reindex(columns=model_feature_names, fill_value=0)
-
-        predicted_points = float(model.predict(X)[0])
-        line = safe_float(row["line"])
-        if line is None:
-            print("  Skipped: invalid line", flush=True)
-            continue
-
-        edge = predicted_points - line
-        if abs(edge) < EDGE_THRESHOLD:
-            print(f"  Skipped: edge {edge:.2f} below threshold {EDGE_THRESHOLD}", flush=True)
-            continue
-
-        model_pick = "OVER" if predicted_points > line else "UNDER"
-        game_date = format_event_game_date(row["commence_time"])
-
-        scored_rows.append({
-            "PLAYER_NAME": actual_name,
-            "sportsbook": row["bookmaker"],
-            "sportsbook_line": line,
-            "predicted_points": round(predicted_points, 2),
-            "edge": round(edge, 2),
-            "model_pick": model_pick,
-            "home_team": row["home_team"],
-            "away_team": row["away_team"],
-            "commence_time": row["commence_time"],
-            "last_update": row["last_update"]
-        })
-
-        if already_logged(records_df, actual_name, game_date, row["bookmaker"], line):
+        if already_logged(
+            records_df,
+            append_payload["player_name"],
+            append_payload["game_date"],
+            append_payload["sportsbook"],
+            append_payload["line"],
+        ):
             print("  Skipped: already logged", flush=True)
             continue
 
         append_to_sheet(
             sheet=sheet,
-            player_name=actual_name,
-            game_date=game_date,
-            line=line,
-            sportsbook=row["bookmaker"],
-            last_update=row["last_update"],
-            predicted_points=predicted_points,
-            model_pick=model_pick
+            player_name=append_payload["player_name"],
+            game_date=append_payload["game_date"],
+            line=append_payload["line"],
+            sportsbook=append_payload["sportsbook"],
+            last_update=append_payload["last_update"],
+            predicted_points=append_payload["predicted_points"],
+            model_pick=append_payload["model_pick"],
         )
 
         logged_count += 1
-        print(f"  Logged: {actual_name} | {row['bookmaker']} | {line} | edge={edge:.2f}", flush=True)
+        print(
+            f"  Logged: {append_payload['player_name']} | "
+            f"{append_payload['sportsbook']} | {append_payload['line']} | "
+            f"edge={append_payload['edge']:.2f}",
+            flush=True,
+        )
         time.sleep(0.5)
 
     if retry_rows:
         print(f"Starting retry pass for {len(retry_rows)} queued props...", flush=True)
         time.sleep(3)
 
-        for j, row_dict in enumerate(retry_rows, start=1):
+        for j, row_data in enumerate(retry_rows, start=1):
             print(
                 f"Retrying prop {j}/{len(retry_rows)}: "
-                f"{row_dict['player_name_raw']} | {row_dict['bookmaker']} | {row_dict['line']}",
-                flush=True
+                f"{row_data['player_name_raw']} | {row_data['bookmaker']} | {row_data['line']}",
+                flush=True,
             )
 
-            normalized = normalize_name(row_dict["player_name_raw"])
-            actual_name = normalized_to_actual.get(normalized)
+            result, status = process_prop_row(
+                row_data=row_data,
+                model=model,
+                model_feature_names=model_feature_names,
+                actual_name_to_id=actual_name_to_id,
+                normalized_to_actual=normalized_to_actual,
+                gamelog_cache=gamelog_cache,
+            )
 
-            if not actual_name:
-                print("  Retry skipped: no active player match", flush=True)
+            if not result:
+                if status == "retry":
+                    print("  Retry failed: gamelog still unavailable", flush=True)
                 continue
 
-            player_id = actual_name_to_id.get(actual_name)
-            if not player_id:
-                print("  Retry skipped: no player id found", flush=True)
-                continue
+            scored_row, append_payload = result
+            add_scored_row(scored_map, scored_row)
 
-            print(f"  Retrying gamelog for {actual_name}", flush=True)
-            df = get_player_gamelog_df(player_id, CURRENT_SEASON)
-
-            if df.empty:
-                print("  Retry failed: gamelog still unavailable", flush=True)
-                continue
-
-            gamelog_cache[player_id] = df
-
-            X = build_player_feature_row(df, actual_name)
-            if X is None or X.empty:
-                print("  Retry skipped: not enough games to build features", flush=True)
-                continue
-
-            if model_feature_names:
-                X = X.reindex(columns=model_feature_names, fill_value=0)
-
-            predicted_points = float(model.predict(X)[0])
-            line = safe_float(row_dict["line"])
-            if line is None:
-                print("  Retry skipped: invalid line", flush=True)
-                continue
-
-            edge = predicted_points - line
-            if abs(edge) < EDGE_THRESHOLD:
-                print(f"  Retry skipped: edge {edge:.2f} below threshold {EDGE_THRESHOLD}", flush=True)
-                continue
-
-            model_pick = "OVER" if predicted_points > line else "UNDER"
-            game_date = format_event_game_date(row_dict["commence_time"])
-
-            scored_rows.append({
-                "PLAYER_NAME": actual_name,
-                "sportsbook": row_dict["bookmaker"],
-                "sportsbook_line": line,
-                "predicted_points": round(predicted_points, 2),
-                "edge": round(edge, 2),
-                "model_pick": model_pick,
-                "home_team": row_dict["home_team"],
-                "away_team": row_dict["away_team"],
-                "commence_time": row_dict["commence_time"],
-                "last_update": row_dict["last_update"]
-            })
-
-            if already_logged(records_df, actual_name, game_date, row_dict["bookmaker"], line):
+            if already_logged(
+                records_df,
+                append_payload["player_name"],
+                append_payload["game_date"],
+                append_payload["sportsbook"],
+                append_payload["line"],
+            ):
                 print("  Retry skipped: already logged", flush=True)
                 continue
 
             append_to_sheet(
                 sheet=sheet,
-                player_name=actual_name,
-                game_date=game_date,
-                line=line,
-                sportsbook=row_dict["bookmaker"],
-                last_update=row_dict["last_update"],
-                predicted_points=predicted_points,
-                model_pick=model_pick
+                player_name=append_payload["player_name"],
+                game_date=append_payload["game_date"],
+                line=append_payload["line"],
+                sportsbook=append_payload["sportsbook"],
+                last_update=append_payload["last_update"],
+                predicted_points=append_payload["predicted_points"],
+                model_pick=append_payload["model_pick"],
             )
 
             logged_count += 1
             print(
-                f"  Retry logged: {actual_name} | {row_dict['bookmaker']} | {line} | edge={edge:.2f}",
-                flush=True
+                f"  Retry logged: {append_payload['player_name']} | "
+                f"{append_payload['sportsbook']} | {append_payload['line']} | "
+                f"edge={append_payload['edge']:.2f}",
+                flush=True,
             )
             time.sleep(0.5)
 
-    if scored_rows:
-        top_df = pd.DataFrame(scored_rows)
-        top_df["abs_edge"] = top_df["edge"].abs()
-        top_df = top_df.sort_values("abs_edge", ascending=False).drop(columns=["abs_edge"]).head(15).copy()
+    top_df = build_top_plays_live_df(scored_map)
 
-        print(f"Writing {len(top_df)} top plays to Top Plays Live...", flush=True)
-        update_top_plays_live_sheet(top_df)
-    else:
+    if top_df.empty:
         print("No scored rows available for Top Plays Live.", flush=True)
         update_top_plays_live_sheet(pd.DataFrame())
+    else:
+        print(f"Writing {len(top_df)} top plays to Top Plays Live...", flush=True)
+        update_top_plays_live_sheet(top_df)
 
     print(f"Done. Logged {logged_count} top plays.", flush=True)
 
