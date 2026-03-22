@@ -571,7 +571,7 @@ def get_today_games(api_key):
         return []
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=300, show_spinner=False)
 def get_available_sportsbooks():
     return [
         "draftkings",
@@ -584,7 +584,7 @@ def get_available_sportsbooks():
     ]
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=300, show_spinner=False)
 def get_player_points_lines(player_name, bookmaker_key):
     try:
         api_key = st.secrets["ODDS_API_KEY"]
