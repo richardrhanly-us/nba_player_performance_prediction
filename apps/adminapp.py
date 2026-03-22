@@ -9,6 +9,7 @@ import gspread
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import src.shared_app as shared_app
+st.write("has manual append:", hasattr(shared_app, "append_manual_play_to_sheet1"))
 
 from src.shared_app import (
     APP_VERSION,
