@@ -72,7 +72,7 @@ TEAM_THEMES = {
 
 
 st.set_page_config(
-    page_title="NBA Edge Lab",
+    page_title="Edge Analytics - NBA",
     page_icon="🏀",
     layout="centered",
 )
@@ -756,7 +756,7 @@ def build_prediction(player_name, sportsbook_line):
 st.markdown(
     f"""
 <div class="hero">
-    <div class="hero-title">NBA Edge Lab</div>
+    <div class="hero-title">Edge Analytics - NBA</div>
     <p class="hero-subtitle">Model-driven player insights and top play signals.</p>
     <div class="hero-pills">
         <div class="hero-pill">Projected points</div>
