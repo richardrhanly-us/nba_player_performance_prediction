@@ -1051,7 +1051,7 @@ with operations_tab:
                         sportsbook_line=item["sportsbook_line"],
                     )
 
-                    )
+                    
 
                     loaded_count += 1
 
