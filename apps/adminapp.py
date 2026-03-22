@@ -957,6 +957,45 @@ with operations_tab:
                     scan_df = scan_df.dropna(subset=["player_name_raw", "line"]).copy()
                     scan_df["player_name_raw"] = scan_df["player_name_raw"].astype(str).str.strip()
 
+
+                    # =========================
+                    # SAVE TO HISTORICAL LINES
+                    # =========================
+                    HISTORICAL_FILE = os.path.abspath(
+                        os.path.join(os.path.dirname(__file__), "..", "historical_lines.csv")
+                    )
+    
+                    today_lines = scan_df.copy()
+    
+                    today_lines = today_lines.rename(columns={
+                        "player_name_raw": "PLAYER_NAME",
+                        "line": "sportsbook_line"
+                    })
+    
+                    today_lines["PLAYER_NAME"] = today_lines["PLAYER_NAME"].astype(str).str.strip()
+                    today_lines["GAME_DATE"] = datetime.now(ZoneInfo("America/Chicago")).date()
+    
+                    today_lines = today_lines[["PLAYER_NAME", "GAME_DATE", "sportsbook_line"]]
+    
+                    if not os.path.exists(HISTORICAL_FILE) or os.path.getsize(HISTORICAL_FILE) == 0:
+                        today_lines.to_csv(HISTORICAL_FILE, index=False)
+                        print("Created historical_lines.csv")
+                    else:
+                        historical = pd.read_csv(HISTORICAL_FILE)
+    
+                        historical["PLAYER_NAME"] = historical["PLAYER_NAME"].astype(str).str.strip()
+                        historical["GAME_DATE"] = pd.to_datetime(historical["GAME_DATE"]).dt.date
+    
+                        combined = pd.concat([historical, today_lines], ignore_index=True)
+    
+                        combined = combined.drop_duplicates(
+                            subset=["PLAYER_NAME", "GAME_DATE", "sportsbook_line"]
+                        )
+    
+                        combined.to_csv(HISTORICAL_FILE, index=False)
+    
+                        print("Updated historical_lines.csv:", combined.shape)
+
                     # Save today's lines to historical_lines.csv
                     HISTORICAL_FILE = os.path.abspath(
                         os.path.join(os.path.dirname(__file__), "..", "historical_lines.csv")
