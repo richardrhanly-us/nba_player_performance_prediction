@@ -4,6 +4,7 @@ import pandas as pd
 import streamlit as st
 import gspread
 
+from urllib.parse import quote_plus
 from scipy.stats import norm
 from google.oauth2.service_account import Credentials
 
