@@ -160,6 +160,28 @@ st.markdown("""
         letter-spacing: 0.02em;
     }
 
+    .top-play-link {
+        text-decoration: none !important;
+        color: inherit !important;
+        display: block;
+    }
+
+    .top-play-link:hover {
+        text-decoration: none !important;
+        color: inherit !important;
+    }
+
+    .top-play-card {
+        cursor: pointer;
+        transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+    }
+
+    .top-play-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.24);
+        border-color: rgba(255,255,255,0.16);
+    }
+
     .section-card {
         background: rgba(15, 23, 42, 0.96);
         border: 1px solid rgba(255,255,255,0.06);
@@ -798,36 +820,35 @@ try:
     else:
         st.markdown("###  Top 3 Plays")
         st.markdown("##### Highest confidence plays of the day")
-
+        
         top3 = top_plays_df.head(3)
-        for i, (_, row) in enumerate(top3.iterrows()):
+        for _, row in top3.iterrows():
             edge_val = pd.to_numeric(row.get("edge"), errors="coerce")
             pred_val = pd.to_numeric(row.get("predicted_points"), errors="coerce")
             line_val = pd.to_numeric(row.get("sportsbook_line"), errors="coerce")
             player_name = row.get("PLAYER_NAME", "Player")
             pick = row.get("model_pick", "")
             matchup = f"{row.get('away_team', '')} @ {row.get('home_team', '')}"
-            book_name = row.get("sportsbook", "draftkings")
+            book_name = str(row.get("sportsbook", "draftkings")).lower()
         
             line_text = f"{line_val:.1f}" if pd.notna(line_val) else "N/A"
             pred_text = f"{pred_val:.2f}" if pd.notna(pred_val) else "N/A"
             edge_text = f"{edge_val:+.2f}" if pd.notna(edge_val) else "N/A"
         
+            href = f"?player={quote_plus(player_name)}&book={quote_plus(book_name)}"
+        
             st.markdown(
                 f"""
-                <div class="top-play-card">
-                    <div class="top-play-title">{player_name} — {pick} {line_text}</div>
-                    <div class="top-play-sub">{matchup}</div>
-                    <div class="top-play-meta">Projection: {pred_text} | Edge: {edge_text}</div>
-                </div>
+                <a class="top-play-link" href="{href}">
+                    <div class="top-play-card">
+                        <div class="top-play-title">{player_name} — {pick} {line_text}</div>
+                        <div class="top-play-sub">{matchup}</div>
+                        <div class="top-play-meta">Projection: {pred_text} | Edge: {edge_text}</div>
+                    </div>
+                </a>
                 """,
                 unsafe_allow_html=True
             )
-        
-            if st.button(f"Load {player_name}", key=f"top_play_open_{i}"):
-                st.session_state.selected_player_from_top_play = player_name
-                st.session_state.selected_book_from_top_play = str(book_name).lower()
-                st.rerun()
         
         st.markdown('<div class="section-card"><div class="section-title">Top Plays Today</div>', unsafe_allow_html=True)
         display_cols = [
@@ -896,9 +917,14 @@ st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown('<div class="section-card"><div class="section-title">Player Projection</div>', unsafe_allow_html=True)
 
+
+query_params = st.query_params
+query_player = query_params.get("player")
+query_book = query_params.get("book")
+
 _, player_names = get_player_lookup()
 
-default_player = st.session_state.get("selected_player_from_top_play")
+default_player = query_player or st.session_state.get("selected_player_from_top_play")
 player_index = None
 if default_player in player_names:
     player_index = player_names.index(default_player)
@@ -913,7 +939,7 @@ selected_player = st.selectbox(
 
 sportsbooks = get_available_sportsbooks()
 
-default_book = st.session_state.get("selected_book_from_top_play", "draftkings")
+default_book = (query_book or st.session_state.get("selected_book_from_top_play") or "draftkings").lower()
 book_index = 0
 if default_book in sportsbooks:
     book_index = sportsbooks.index(default_book)
