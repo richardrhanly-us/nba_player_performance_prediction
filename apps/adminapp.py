@@ -485,23 +485,28 @@ with operations_tab:
     st.markdown('<div class="section-card"><div class="section-title">Admin Tools</div>', unsafe_allow_html=True)
 
     status_placeholder = st.empty()
-    tool_col1, tool_col2 = st.columns([1, 1])
 
-    with tool_col1:
+    row1_col1, row1_col2 = st.columns(2)
+    row2_col1, row2_col2 = st.columns(2)
+
+    with row1_col1:
         if st.button("Update Final Results", use_container_width=True):
             status_placeholder.info("Checking pending rows and updating final results...")
             try:
                 updated_count, checked_count = update_all_pending_sheet_results()
+
                 write_admin_log(
                     action="update_final_results",
                     source="admin_manual",
                     status="success",
                     details=f"Checked {checked_count} pending rows and updated {updated_count} completed games."
                 )
+
                 status_placeholder.success(
                     f"Done. Checked {checked_count} pending rows and updated {updated_count} completed games."
                 )
                 st.cache_data.clear()
+
             except Exception as e:
                 write_admin_log(
                     action="update_final_results",
@@ -511,27 +516,65 @@ with operations_tab:
                 )
                 status_placeholder.error(f"Batch update failed: {e}")
 
-    with tool_col2:
-        if st.button("🔄 Refresh App State"):
+    with row1_col2:
+        if st.button("Retry Pending Results", use_container_width=True):
+            status_placeholder.info("Retrying pending or ungraded rows...")
+            try:
+                updated_count, checked_count = update_all_pending_sheet_results()
+
+                write_admin_log(
+                    action="retry_pending_results",
+                    source="admin_manual",
+                    status="success",
+                    details=f"Retried {checked_count} pending rows and updated {updated_count} completed games."
+                )
+
+                status_placeholder.success(
+                    f"Retry complete. Checked {checked_count} pending rows and updated {updated_count} completed games."
+                )
+                st.cache_data.clear()
+
+            except Exception as e:
+                write_admin_log(
+                    action="retry_pending_results",
+                    source="admin_manual",
+                    status="failed",
+                    details=str(e)
+                )
+                status_placeholder.error(f"Retry failed: {e}")
+
+    with row2_col1:
+        if st.button("Rebuild Top Plays Live", use_container_width=True):
+            status_placeholder.info("Top Plays Live rebuild is not wired yet.")
+            write_admin_log(
+                action="rebuild_top_plays_live",
+                source="admin_manual",
+                status="pending",
+                details="Button clicked, backend function not wired yet."
+            )
+
+    with row2_col2:
+        if st.button("Refresh App State", use_container_width=True):
             try:
                 st.cache_data.clear()
                 st.cache_resource.clear()
-        
+
                 write_admin_log(
-                    event="refresh_app_state",
+                    action="refresh_app_state",
+                    source="admin_manual",
                     status="success",
-                    message="Cache cleared and app rerun triggered"
+                    details="Cache cleared and app rerun triggered."
                 )
-        
+
                 st.success("App state refreshed. Reloading...")
-        
                 st.rerun()
-        
+
             except Exception as e:
                 write_admin_log(
-                    event="refresh_app_state",
-                    status="error",
-                    message=str(e)
+                    action="refresh_app_state",
+                    source="admin_manual",
+                    status="failed",
+                    details=str(e)
                 )
                 st.error(f"Failed to refresh app: {e}")
 
