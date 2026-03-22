@@ -78,6 +78,12 @@ st.set_page_config(
 from streamlit_autorefresh import st_autorefresh
 st_autorefresh(interval=15000, key="live_refresh")
 
+if "selected_player_from_top_play" not in st.session_state:
+    st.session_state.selected_player_from_top_play = None
+
+if "selected_book_from_top_play" not in st.session_state:
+    st.session_state.selected_book_from_top_play = "draftkings"
+
 st.markdown("""
 <style>
     .stApp {
@@ -366,6 +372,10 @@ st.markdown("""
         font-size: 0.9rem;
         margin-top: 0.35rem;
         margin-bottom: 0.35rem;
+    }
+
+    div.stButton > button[kind="secondary"] {
+        width: 100%;
     }
     
 
@@ -790,28 +800,39 @@ try:
         st.markdown("##### Highest confidence plays of the day")
 
         top3 = top_plays_df.head(3)
-        for _, row in top3.iterrows():
+        for i, (_, row) in enumerate(top3.iterrows()):
             edge_val = pd.to_numeric(row.get("edge"), errors="coerce")
             pred_val = pd.to_numeric(row.get("predicted_points"), errors="coerce")
             line_val = pd.to_numeric(row.get("sportsbook_line"), errors="coerce")
             player_name = row.get("PLAYER_NAME", "Player")
             pick = row.get("model_pick", "")
             matchup = f"{row.get('away_team', '')} @ {row.get('home_team', '')}"
-
+            book_name = row.get("sportsbook", "draftkings")
+        
             line_text = f"{line_val:.1f}" if pd.notna(line_val) else "N/A"
             pred_text = f"{pred_val:.2f}" if pd.notna(pred_val) else "N/A"
             edge_text = f"{edge_val:+.2f}" if pd.notna(edge_val) else "N/A"
-
-            st.markdown(
-                f"""
-                <div class="top-play-card">
-                    <div class="top-play-title">{player_name} — {pick} {line_text}</div>
-                    <div class="top-play-sub">{matchup}</div>
-                    <div class="top-play-meta">Projection: {pred_text} | Edge: {edge_text}</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+        
+            card_col, button_col = st.columns([12, 2])
+        
+            with card_col:
+                st.markdown(
+                    f"""
+                    <div class="top-play-card">
+                        <div class="top-play-title">{player_name} — {pick} {line_text}</div>
+                        <div class="top-play-sub">{matchup}</div>
+                        <div class="top-play-meta">Projection: {pred_text} | Edge: {edge_text}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+        
+            with button_col:
+                if st.button("Open", key=f"top_play_open_{i}"):
+                    st.session_state.selected_player_from_top_play = player_name
+                    st.session_state.selected_book_from_top_play = str(book_name).lower()
+                    st.rerun()
+        
         st.markdown('<div class="section-card"><div class="section-title">Top Plays Today</div>', unsafe_allow_html=True)
         display_cols = [
             col for col in [
@@ -881,20 +902,36 @@ st.markdown('<div class="section-card"><div class="section-title">Player Project
 
 _, player_names = get_player_lookup()
 
+default_player = st.session_state.get("selected_player_from_top_play")
+player_index = None
+if default_player in player_names:
+    player_index = player_names.index(default_player)
+
 selected_player = st.selectbox(
     "Search for a player",
     options=player_names,
-    index=None,
-    placeholder="Start typing a player name..."
+    index=player_index,
+    placeholder="Start typing a player name...",
+    key="player_projection_selectbox"
 )
 
 sportsbooks = get_available_sportsbooks()
+
+default_book = st.session_state.get("selected_book_from_top_play", "draftkings")
+book_index = 0
+if default_book in sportsbooks:
+    book_index = sportsbooks.index(default_book)
+
 selected_book = st.selectbox(
     "Sportsbook",
     options=sportsbooks,
-    index=0 if sportsbooks else None,
-    placeholder="Choose a sportsbook..."
+    index=book_index if sportsbooks else None,
+    placeholder="Choose a sportsbook...",
+    key="sportsbook_selectbox"
 )
+
+st.session_state.selected_player_from_top_play = selected_player
+st.session_state.selected_book_from_top_play = selected_book
 
 live_line = None
 player_lines = None
