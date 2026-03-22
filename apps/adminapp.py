@@ -271,6 +271,7 @@ if st.button("Test Admin Log"):
     )
     st.cache_data.clear()
     st.success("Test log written.")
+    st.rerun() 
 
 
 top_games_win_rate, top_games_total = get_strong_plays_summary()
