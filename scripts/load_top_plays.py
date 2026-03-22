@@ -157,95 +157,27 @@ def fetch_player_points_market(api_key, event_id, bookmaker_key):
     return resp.json()
 
 
-def fetch_all_today_player_props(api_key, bookmaker_key):
-    print("Fetching NBA events from Odds API...", flush=True)
-    events = fetch_upcoming_nba_events(api_key)
-    print(f"Events found: {len(events)}", flush=True)
+def fetch_player_points_market(api_key, event_id, bookmaker_key):
+    url = f"https://api.the-odds-api.com/v4/sports/basketball_nba/events/{event_id}/odds"
 
-    rows = []
+    params = {
+        "apiKey": api_key,
+        "regions": "us",
+        "markets": "player_points",
+        "bookmakers": bookmaker_key,
+        "oddsFormat": "american",
+    }
 
-    for event_idx, event in enumerate(events, start=1):
-        event_id = event.get("id")
-        if not event_id:
-            continue
+    print(f"[ODDS API] Requesting event odds with params: {params}", flush=True)
 
-        print(
-            f"Reading event {event_idx}/{len(events)}: "
-            f"{event.get('away_team', '')} @ {event.get('home_team', '')}",
-            flush=True,
-        )
+    resp = requests.get(url, params=params, timeout=20)
 
-        try:
-            event_odds = fetch_player_points_market(api_key, event_id, bookmaker_key)
-        except Exception as e:
-            print(f"  Skipped event odds fetch: {e}", flush=True)
-            continue
+    if resp.status_code != 200:
+        print(f"[ODDS API] Status code: {resp.status_code}", flush=True)
+        print(f"[ODDS API] Response text: {resp.text}", flush=True)
 
-        time.sleep(0.3)
-
-        home_team = event.get("home_team", "")
-        away_team = event.get("away_team", "")
-        commence_time = event.get("commence_time", "")
-
-        for bookmaker in event_odds.get("bookmakers", []):
-            book_title = bookmaker.get("title", "Unknown")
-            book_key = bookmaker.get("key", bookmaker_key)
-
-            for market in bookmaker.get("markets", []):
-                if market.get("key") != "player_points":
-                    continue
-
-                market_last_update = market.get("last_update", "")
-                grouped = {}
-
-                for outcome in market.get("outcomes", []):
-                    player_desc = outcome.get("description", "")
-                    point = outcome.get("point")
-                    side = outcome.get("name")
-
-                    if not player_desc or point is None or side not in ("Over", "Under"):
-                        continue
-
-                    key = (normalize_name(player_desc), float(point))
-                    if key not in grouped:
-                        grouped[key] = {
-                            "player_name_raw": player_desc,
-                            "line": float(point),
-                            "over_price": None,
-                            "under_price": None,
-                        }
-
-                    if side == "Over":
-                        grouped[key]["over_price"] = outcome.get("price")
-                    elif side == "Under":
-                        grouped[key]["under_price"] = outcome.get("price")
-
-                for _, item in grouped.items():
-                    if item["over_price"] is None or item["under_price"] is None:
-                        continue
-
-                    rows.append({
-                        "player_name_raw": item["player_name_raw"],
-                        "line": item["line"],
-                        "bookmaker": book_title,
-                        "bookmaker_key": str(book_key).lower(),
-                        "last_update": market_last_update,
-                        "home_team": home_team,
-                        "away_team": away_team,
-                        "commence_time": commence_time,
-                    })
-
-    if not rows:
-        return pd.DataFrame()
-
-    df = pd.DataFrame(rows)
-    df = df.drop_duplicates(
-        subset=["player_name_raw", "line", "bookmaker_key", "commence_time"]
-    ).reset_index(drop=True)
-
-    print(f"Qualified prop rows collected before model scoring: {len(df)}", flush=True)
-    return df
-
+    resp.raise_for_status()
+    return resp.json()
 
 def load_model():
     print("Loading model...", flush=True)
