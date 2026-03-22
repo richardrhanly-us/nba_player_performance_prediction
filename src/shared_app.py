@@ -894,10 +894,19 @@ def update_all_pending_sheet_results(debug=False):
     for idx, row in df.iterrows():
         rows_scanned += 1
 
-        bet_status = str(row.get("bet_status", "")).strip().upper()
-        if bet_status != "PENDING":
+        final_points_cell = str(row.get("final_points", "")).strip()
+        line_result_cell = str(row.get("line_result", "")).strip()
+        model_result_cell = str(row.get("model_result", "")).strip()
+        
+        is_pending = (
+            final_points_cell == "" or
+            line_result_cell == "" or
+            model_result_cell == ""
+        )
+        
+        if not is_pending:
             continue
-
+        
         pending_rows_found += 1
         checked_count += 1
 
