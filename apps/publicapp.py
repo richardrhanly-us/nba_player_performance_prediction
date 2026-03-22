@@ -562,6 +562,27 @@ def format_game_clock(clock_value):
     except Exception:
         return text
 
+def format_game_status_short(status):
+    if not status:
+        return "Live"
+
+    text = str(status).lower()
+
+    if "1st" in text or "q1" in text:
+        return "Q1"
+    if "2nd" in text or "q2" in text:
+        return "Q2"
+    if "3rd" in text or "q3" in text:
+        return "Q3"
+    if "4th" in text or "q4" in text:
+        return "Q4"
+    if "half" in text:
+        return "HALF"
+    if "final" in text:
+        return "FINAL"
+
+    return str(status)
+
 @st.cache_resource
 def get_gsheet_client():
     creds = Credentials.from_service_account_info(
