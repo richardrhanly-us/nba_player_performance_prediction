@@ -855,7 +855,8 @@ def update_sheet_with_final_result(row_number, final_points, sportsbook_line, mo
 
 
 def update_all_pending_sheet_results(debug=False):
-    sheet = get_strong_plays_sheet()
+    client = get_gsheet_client()
+    sheet = client.open_by_key(SHEET_KEY).worksheet("Sheet1")
     values = sheet.get_all_values()
 
     if not values or len(values) < 2:
@@ -875,7 +876,7 @@ def update_all_pending_sheet_results(debug=False):
     rows = values[1:]
     df = pd.DataFrame(rows, columns=headers)
 
-    required_cols = ["PLAYER_NAME", "GAME_DATE", "sportsbook_line", "model_pick", "bet_status"]
+    required_cols = ["PLAYER_NAME", "GAME_DATE", "sportsbook_line", "sportsbook", "last_update", "predicted_points", "final_points", "line_result", "model_pick", "model_result", "result_logged_at", "profit", "cumulative_profit", "edge", "bet_status"]
     if any(col not in df.columns for col in required_cols):
         raise ValueError("Strong Plays sheet is missing required columns.")
 
