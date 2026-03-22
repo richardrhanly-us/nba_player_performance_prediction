@@ -272,6 +272,8 @@ def load_active_players():
 
 
 def get_player_gamelog_df(player_id, season):
+    session = build_nba_session()
+
     for attempt in range(4):
         try:
             print(
@@ -280,15 +282,36 @@ def get_player_gamelog_df(player_id, season):
                 flush=True,
             )
 
-            df = playergamelog.PlayerGameLog(
-                player_id=player_id,
-                season=season,
-                timeout=25,
-            ).get_data_frames()[0]
+            url = "https://stats.nba.com/stats/playergamelog"
+            params = {
+                "DateFrom": "",
+                "DateTo": "",
+                "LeagueID": "00",
+                "PlayerID": str(player_id),
+                "Season": season,
+                "SeasonType": "Regular Season",
+            }
+
+            resp = session.get(url, params=params, timeout=25)
+            resp.raise_for_status()
+            data = resp.json()
+
+            result_sets = data.get("resultSets", [])
+            if not result_sets:
+                print("No resultSets returned from stats.nba.com", flush=True)
+                return pd.DataFrame()
+
+            headers = result_sets[0].get("headers", [])
+            rows = result_sets[0].get("rowSet", [])
+
+            if not headers or not rows:
+                print("Empty gamelog returned from stats.nba.com", flush=True)
+                return pd.DataFrame()
+
+            df = pd.DataFrame(rows, columns=headers)
 
             if df is not None and not df.empty:
-                sleep_time = random.uniform(0.4, 1.1)
-                time.sleep(sleep_time)
+                time.sleep(random.uniform(0.4, 1.1))
                 return df
 
         except Exception as e:
