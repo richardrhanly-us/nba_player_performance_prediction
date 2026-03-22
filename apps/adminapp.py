@@ -965,7 +965,32 @@ with operations_tab:
                         keep="first"
                     ).reset_index(drop=True)
 
-                    existing_keys = {
+                    sheet1_df = get_sheet1_df()
+
+                    existing_sheet_keys = set()
+                    if not sheet1_df.empty:
+                        working_sheet1 = sheet1_df.copy()
+
+                        for col in ["PLAYER_NAME", "sportsbook", "sportsbook_line"]:
+                            if col not in working_sheet1.columns:
+                                working_sheet1[col] = ""
+
+                        for _, existing_row in working_sheet1.iterrows():
+                            existing_player = str(existing_row.get("PLAYER_NAME", "")).strip()
+                            existing_book = str(existing_row.get("sportsbook", "")).strip().lower()
+                            existing_line = str(existing_row.get("sportsbook_line", "")).strip()
+
+                            if existing_player and existing_book and existing_line:
+                                try:
+                                    existing_sheet_keys.add((
+                                        existing_player,
+                                        existing_book,
+                                        float(existing_line)
+                                    ))
+                                except Exception:
+                                    pass
+
+                    existing_queue_keys = {
                         (
                             str(item["player_name"]).strip(),
                             str(item["sportsbook"]).strip().lower(),
@@ -984,7 +1009,7 @@ with operations_tab:
 
                         queue_key = (player_name, sportsbook_key, sportsbook_line)
 
-                        if queue_key in existing_keys:
+                        if queue_key in existing_queue_keys or queue_key in existing_sheet_keys:
                             continue
 
                         st.session_state.manual_add_queue.append({
@@ -994,7 +1019,7 @@ with operations_tab:
                             "last_update": last_update,
                         })
 
-                        existing_keys.add(queue_key)
+                        existing_queue_keys.add(queue_key)
                         added_count += 1
 
                     if added_count == 0:
@@ -1045,18 +1070,23 @@ with operations_tab:
 
             for idx, item in enumerate(queue_items, start=1):
                 try:
+                    status_placeholder.info(
+                        f"Writing {idx}/{total_items}: "
+                        f"{item['player_name']} | {item['sportsbook']} {item['sportsbook_line']}"
+                    )
+
                     result = shared_app.append_manual_play_to_sheet1(
                         player_name=item["player_name"],
                         sportsbook_key=item["sportsbook"],
                         sportsbook_line=item["sportsbook_line"],
                     )
 
-                    
-
                     loaded_count += 1
 
                 except Exception as e:
-                    failed_items.append(f"{item['player_name']} | {item['sportsbook']} {item['sportsbook_line']} | {e}")
+                    error_msg = f"{item['player_name']} | {item['sportsbook']} {item['sportsbook_line']} | {e}"
+                    failed_items.append(error_msg)
+                    status_placeholder.error(error_msg)
 
                 progress_bar.progress(idx / total_items)
                 time.sleep(1.25)
