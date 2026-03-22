@@ -1322,7 +1322,7 @@ model_card_html = f"""
 
         <div class="model-stat">
             <div class="model-stat-label">Sportsbook Line</div>
-            <div class="model-stat-value">{result["sportsbook_line"]}</div>
+            <div class="model-stat-value">{sportsbook_line:.1f}</div>
         </div>
 
         <div class="model-stat">
@@ -1332,16 +1332,12 @@ model_card_html = f"""
 
         <div class="model-stat">
             <div class="model-stat-label">Probability Split</div>
-            <div class="model-stat-value">
-                O {result["over_prob"]:.1f}% / U {result["under_prob"]:.1f}%
-            </div>
+            <div class="model-stat-value">{probability_text}</div>
         </div>
 
     </div>
 
-    <div class="model-interpretation">
-        {interpretation_text}
-    </div>
+    <div class="small-note">{interpretation_text}</div>
 
     <div class="pick-banner"
          style="background:{pick_bg}; border:2px solid {pick_border}; color:{pick_text_color};">
@@ -1355,113 +1351,37 @@ model_card_html = f"""
 </div>
 """
 
-        st.markdown(model_card_html, unsafe_allow_html=True)
+st.markdown(model_card_html, unsafe_allow_html=True)
 
-        if live_stats and base_predicted_points is not None:
-            st.caption(
-                f"Pregame model: {base_predicted_points:.2f} | "
-                f"Live-adjusted projection: {predicted_points:.2f}"
-            )
 
-        if over_prob is not None and under_prob is not None:
-            prob_col1, prob_col2 = st.columns(2)
+if live_stats and base_predicted_points is not None:
+    st.caption(
+        f"Pregame model: {base_predicted_points:.2f} | "
+        f"Live-adjusted projection: {predicted_points:.2f}"
+    )
 
-            with prob_col1:
-                st.markdown(
-                    f"""
-                    <div class="mini-card">
-                        <div class="mini-title">Over Probability</div>
-                        <div class="mini-value">{over_prob * 100:.1f}%</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
 
-            with prob_col2:
-                st.markdown(
-                    f"""
-                    <div class="mini-card">
-                        <div class="mini-title">Under Probability</div>
-                        <div class="mini-value">{under_prob * 100:.1f}%</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+if over_prob is not None and under_prob is not None:
+    prob_col1, prob_col2 = st.columns(2)
 
-        if live_stats:
-            st.markdown("#### Live Game Status")
+    with prob_col1:
+        st.markdown(
+            f"""
+            <div class="mini-card">
+                <div class="mini-title">Over Probability</div>
+                <div class="mini-value">{over_prob * 100:.1f}%</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-            live_col1, live_col2, live_col3 = st.columns(3)
-
-            with live_col1:
-                st.markdown(
-                    f"""
-                    <div class="mini-card">
-                        <div class="mini-title">Current Points</div>
-                        <div class="mini-value">{safe_live_display(live_stats.get('points', 'N/A'))}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-            with live_col2:
-                st.markdown(
-                    f"""
-                    <div class="mini-card">
-                        <div class="mini-title">Minutes</div>
-                        <div class="mini-value">{format_minutes(live_stats.get('minutes'))}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-            with live_col3:
-                game_status = format_game_status_short(live_stats.get("game_status"), live_stats)
-                game_clock = format_game_clock(live_stats.get("game_clock"))
-
-                st.markdown(
-                    f"""
-                    <div class="mini-card">
-                        <div class="mini-title">Game</div>
-                        <div class="mini-value">{game_status} • {game_clock}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-        subcol1, subcol2, subcol3 = st.columns(3)
-
-        with subcol1:
-            season_text = "N/A" if season_avg is None else f"{season_avg:.2f}"
-            st.markdown(
-                f"""
-                <div class="mini-card">
-                    <div class="mini-title">Season Avg</div>
-                    <div class="mini-value">{season_text}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        with subcol2:
-            last5_text = "N/A" if last5_avg is None else f"{last5_avg:.2f}"
-            st.markdown(
-                f"""
-                <div class="mini-card">
-                    <div class="mini-title">Last 5 Avg</div>
-                    <div class="mini-value">{last5_text}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        with subcol3:
-            st.markdown(
-                f"""
-                <div class="mini-card">
-                    <div class="mini-title">Sample Size</div>
-                    <div class="mini-value">{games_used}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+    with prob_col2:
+        st.markdown(
+            f"""
+            <div class="mini-card">
+                <div class="mini-title">Under Probability</div>
+                <div class="mini-value">{under_prob * 100:.1f}%</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
