@@ -1355,8 +1355,6 @@ model_card_html = f"""
 </div>
 """
 
-
-
         st.markdown(model_card_html, unsafe_allow_html=True)
 
         if live_stats and base_predicted_points is not None:
