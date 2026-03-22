@@ -3,6 +3,7 @@ import sys
 from urllib.parse import quote_plus
 import uuid
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 
 import gspread
@@ -786,7 +787,7 @@ def ensure_usage_log_sheet():
 def write_usage_log(event_type, session_id, player_name="", sportsbook="", details=""):
     try:
         ws = ensure_usage_log_sheet()
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = datetime.now(ZoneInfo("America/Chicago")).strftime("%Y-%m-%d %H:%M:%S")
 
         ws.append_row(
             [
