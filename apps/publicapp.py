@@ -668,28 +668,40 @@ def render_model_card(
     pick_text,
 ):
     headshot_url = result.get("headshot_url") or ""
+    team_name = result.get("team_name") or ""
+    position = result.get("position") or ""
+
+    team_position_line = ""
+    if team_name and position:
+        team_position_line = f"{team_name} • {position}"
+    elif team_name:
+        team_position_line = team_name
+    elif position:
+        team_position_line = position
 
     model_card_html = f"""<div class="model-card"
 style="background:{model_bg};
 border:2px solid {hex_to_rgba(model_border,0.95)};
 box-shadow:0 0 1px rgba(255,255,255,0.04),0 0 22px {model_glow};">
 
-<div style="display:flex; align-items:center; gap:16px; margin-bottom:12px;">
+<div style="display:flex; align-items:center; gap:18px; margin-bottom:14px;">
 <img
 src="{headshot_url}"
 style="
-width:72px;
-height:72px;
-border-radius:16px;
+width:84px;
+height:84px;
+border-radius:18px;
 object-fit:cover;
 border:1px solid rgba(255,255,255,0.12);
-box-shadow:0 4px 12px rgba(0,0,0,0.25);
+box-shadow:0 6px 18px rgba(0,0,0,0.35);
+flex-shrink:0;
 "
 onerror="this.style.display='none';"
 >
 <div>
-<div class="model-title" style="margin-bottom:4px;">{result["actual_name"]}</div>
-<div class="model-subtitle">Model Output</div>
+<div class="model-title" style="margin-bottom:2px;">{result["actual_name"]}</div>
+<div style="font-size:0.82rem; color:#cbd5e1; margin-bottom:6px;">{team_position_line}</div>
+<div class="model-subtitle" style="margin-bottom:0;">Model Output</div>
 </div>
 </div>
 
@@ -731,7 +743,6 @@ Trained regression model output compared against the current sportsbook line.
 </div>"""
 
     st.markdown(model_card_html, unsafe_allow_html=True)
-
 
 @st.cache_resource
 def get_gsheet_client():
@@ -899,12 +910,15 @@ def build_prediction(player_name, sportsbook_line):
 
     team_name = None
     team_abbr = None
+    position = None
     if player_info_df is not None and not player_info_df.empty:
         try:
             if "TEAM_NAME" in player_info_df.columns:
                 team_name = player_info_df.iloc[0]["TEAM_NAME"]
             if "TEAM_ABBREVIATION" in player_info_df.columns:
                 team_abbr = player_info_df.iloc[0]["TEAM_ABBREVIATION"]
+            if "POSITION" in player_info_df.columns:
+                position = player_info_df.iloc[0]["POSITION"]
         except Exception:
             pass
 
@@ -926,6 +940,7 @@ def build_prediction(player_name, sportsbook_line):
         "team_info": team_info,
         "team_name": team_name,
         "team_abbr": team_abbr,
+        "position": position,
     }
 
 
