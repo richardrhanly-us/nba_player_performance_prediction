@@ -1175,17 +1175,17 @@ if selected_player:
     with st.spinner("Building projection..."):
         result = build_prediction(selected_player, float(sportsbook_line))
 
-search_key = f"{selected_player}|{selected_book}|{sportsbook_line}"
+    search_key = f"{selected_player}|{selected_book}|{sportsbook_line}"
 
-if st.session_state.last_logged_search_key != search_key:
-    write_usage_log(
-        event_type="search",
-        session_id=st.session_state.session_id,
-        player_name=selected_player,
-        sportsbook=selected_book,
-        details=f"line={sportsbook_line}"
-    )
-    st.session_state.last_logged_search_key = search_key
+    if st.session_state.last_logged_search_key != search_key:
+        write_usage_log(
+            event_type="search",
+            session_id=st.session_state.session_id,
+            player_name=selected_player,
+            sportsbook=selected_book,
+            details=f"line={sportsbook_line}"
+        )
+        st.session_state.last_logged_search_key = search_key
 
     game_is_final = False
     if result.get("live_stats"):
