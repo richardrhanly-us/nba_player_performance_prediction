@@ -726,7 +726,7 @@ try:
     if top_plays_df.empty:
         st.info("No top plays available right now.")
     else:
-        st.markdown("### ⭐ Top 3 Plays")
+        st.markdown("###  Top 3 Plays")
 
         top3 = top_plays_df.head(3)
         for _, row in top3.iterrows():
