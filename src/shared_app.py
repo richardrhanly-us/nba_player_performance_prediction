@@ -105,77 +105,6 @@ def compute_game_minutes_remaining(period, game_clock_minutes):
     return (5.0 * overtime_periods_left) + game_clock_minutes
 
 
-def append_manual_play_to_sheet1(player_name, sportsbook_key, sportsbook_line=None):
-    actual_name_to_id, normalized_to_actual = load_active_players()
-    normalized = normalize_name(player_name)
-    actual_name = normalized_to_actual.get(normalized, player_name)
-
-    player_id = actual_name_to_id.get(actual_name)
-    if not player_id:
-        raise ValueError(f"No active player id found for {player_name}")
-
-    df = get_player_gamelog_df(player_id, CURRENT_SEASON)
-    if df is None or df.empty:
-        raise ValueError(f"Could not load gamelog for {actual_name}")
-
-    X = build_player_feature_row(df, actual_name)
-    if X is None or X.empty:
-        raise ValueError(f"Not enough data to build features for {actual_name}")
-
-    model = load_model()
-    model_feature_names = list(getattr(model, "feature_names_in_", []))
-    if model_feature_names:
-        X = X.reindex(columns=model_feature_names, fill_value=0)
-
-    predicted_points = float(model.predict(X)[0])
-
-    line_data = get_player_points_lines(actual_name, sportsbook_key)
-
-    if sportsbook_line is None:
-        if not line_data or line_data.get("points_line") is None:
-            raise ValueError(f"No live {sportsbook_key} line found for {actual_name}")
-        sportsbook_line = float(line_data["points_line"])
-    else:
-        sportsbook_line = float(sportsbook_line)
-
-    model_pick = "OVER" if predicted_points > sportsbook_line else "UNDER"
-
-    sheet = get_results_sheet()
-    values = sheet.get_all_values()
-    next_row = len(values) + 1 if values else 2
-
-    last_update = ""
-    if line_data:
-        last_update = line_data.get("last_update", "") or ""
-
-    game_date = pd.Timestamp.now(tz="US/Central").strftime("%B %d, %Y")
-
-    row_values = [[
-        actual_name,                 # A PLAYER_NAME
-        game_date,                   # B GAME_DATE
-        sportsbook_line,             # C sportsbook_line
-        sportsbook_key,              # D sportsbook
-        last_update,                 # E last_update
-        round(predicted_points, 2),  # F predicted_points
-        "",                          # G final_points
-        "",                          # H line_result
-        model_pick,                  # I model_pick
-        "",                          # J model_result
-        "",                          # K result_logged_at
-    ]]
-
-    sheet.update(range_name=f"A{next_row}:K{next_row}", values=row_values)
-    st.cache_data.clear()
-
-    return {
-        "player_name": actual_name,
-        "sportsbook": sportsbook_key,
-        "sportsbook_line": sportsbook_line,
-        "predicted_points": round(predicted_points, 2),
-        "edge": round(predicted_points - sportsbook_line, 2),
-        "model_pick": model_pick,
-        "sheet_row": next_row,
-    }
 
 @st.cache_resource
 def get_gsheet_client():
@@ -246,7 +175,7 @@ def append_manual_play_to_sheet1(player_name, sportsbook_key, sportsbook_line=No
     if line_data:
         last_update = line_data.get("last_update", "") or ""
 
-    game_date = pd.Timestamp.now(tz="US/Central").strftime("%B %d, %Y")
+    game_date = pd.Timestamp.now(tz="America/Chicago").strftime("%B %d, %Y")
 
     row_values = [[
         actual_name,
