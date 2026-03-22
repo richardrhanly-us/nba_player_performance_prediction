@@ -376,11 +376,12 @@ def build_sheet1_debug_summary(df):
     working_df = df.copy()
     working_df.columns = [str(c).strip() for c in working_df.columns]
 
-    for col in ["final_points", "line_result", "model_result", "PLAYER_NAME", "GAME_DATE"]:
+    for col in ["final_points", "line_result", "model_result", "bet_status", "PLAYER_NAME", "GAME_DATE"]:
         if col not in working_df.columns:
             working_df[col] = ""
 
     pending_mask = (
+        working_df["bet_status"].astype(str).str.strip().str.upper().eq("PENDING") |
         working_df["final_points"].astype(str).str.strip().eq("") |
         working_df["line_result"].astype(str).str.strip().eq("") |
         working_df["model_result"].astype(str).str.strip().eq("")
@@ -400,6 +401,7 @@ def build_sheet1_debug_summary(df):
             "model_pick",
             "line_result",
             "model_result",
+            "bet_status",
             "result_logged_at",
         ]
         if col in working_df.columns
@@ -622,7 +624,7 @@ with operations_tab:
 
     with row1_col1:
         if st.button("📊 Update Final Results", use_container_width=True):
-            status_placeholder.info("Scanning Sheet1 and updating eligible final results...")
+            status_placeholder.info("Scanning pending rows and writing results back to Sheet1...")
             try:
                 debug_result = update_all_pending_sheet_results(debug=True)
                 st.session_state.last_operations_debug = debug_result
@@ -632,6 +634,8 @@ with operations_tab:
                     source="admin_manual",
                     status="success",
                     details=(
+                        f"Source {debug_result.get('source_sheet', 'unknown')} | "
+                        f"Loaded {debug_result.get('total_data_rows_loaded', 0)} rows | "
                         f"Scanned {debug_result.get('rows_scanned', 0)} rows | "
                         f"Pending {debug_result.get('pending_rows_found', 0)} | "
                         f"Skipped not final {debug_result.get('rows_skipped_not_final', 0)} | "
@@ -641,9 +645,10 @@ with operations_tab:
                 )
 
                 status_placeholder.success(
-                    f"Done. Scanned {debug_result.get('rows_scanned', 0)} rows | "
-                    f"Pending {debug_result.get('pending_rows_found', 0)} | "
-                    f"Updated {debug_result.get('rows_updated', 0)}"
+                    f"Done. Source: {debug_result.get('source_sheet', 'unknown')} | "
+                    f"Loaded: {debug_result.get('total_data_rows_loaded', 0)} | "
+                    f"Pending: {debug_result.get('pending_rows_found', 0)} | "
+                    f"Updated: {debug_result.get('rows_updated', 0)}"
                 )
                 st.cache_data.clear()
 
@@ -658,7 +663,7 @@ with operations_tab:
 
     with row1_col2:
         if st.button("🛠️ Retry Pending Results", use_container_width=True):
-            status_placeholder.info("Retrying only pending or ungraded rows...")
+            status_placeholder.info("Retrying pending rows from Sheet1...")
             try:
                 debug_result = update_all_pending_sheet_results(debug=True)
                 st.session_state.last_operations_debug = debug_result
@@ -668,6 +673,8 @@ with operations_tab:
                     source="admin_manual",
                     status="success",
                     details=(
+                        f"Source {debug_result.get('source_sheet', 'unknown')} | "
+                        f"Loaded {debug_result.get('total_data_rows_loaded', 0)} rows | "
                         f"Scanned {debug_result.get('rows_scanned', 0)} rows | "
                         f"Pending {debug_result.get('pending_rows_found', 0)} | "
                         f"Skipped not final {debug_result.get('rows_skipped_not_final', 0)} | "
@@ -677,8 +684,9 @@ with operations_tab:
                 )
 
                 status_placeholder.success(
-                    f"Retry complete. Pending {debug_result.get('pending_rows_found', 0)} | "
-                    f"Updated {debug_result.get('rows_updated', 0)}"
+                    f"Retry complete. Source: {debug_result.get('source_sheet', 'unknown')} | "
+                    f"Pending: {debug_result.get('pending_rows_found', 0)} | "
+                    f"Updated: {debug_result.get('rows_updated', 0)}"
                 )
                 st.cache_data.clear()
 
@@ -733,6 +741,30 @@ with operations_tab:
     if not debug_result:
         st.info("Run one of the result update actions above to see debug output.")
     else:
+        source_col, loaded_col = st.columns(2)
+
+        with source_col:
+            st.markdown(
+                f"""
+                <div class="status-box">
+                    <div class="mini-label">Source Sheet</div>
+                    <div class="mini-value">{debug_result.get('source_sheet', 'unknown')}</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        with loaded_col:
+            st.markdown(
+                f"""
+                <div class="status-box">
+                    <div class="mini-label">Rows Loaded</div>
+                    <div class="mini-value">{debug_result.get('total_data_rows_loaded', 0)}</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
         dbg1, dbg2, dbg3, dbg4 = st.columns(4)
 
         with dbg1:
