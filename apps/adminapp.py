@@ -931,91 +931,86 @@ with operations_tab:
 
     sportsbook_options = get_available_sportsbooks()
 
-        scan_col1, scan_col2, scan_col3 = st.columns([1, 1, 1])
-        
-        with scan_col1:
-            st.markdown("Sportsbook")
-            queue_sportsbook = st.selectbox(
-                "Sportsbook",
-                options=sportsbook_options,
-                index=0,
-                key="queue_sportsbook",
-                label_visibility="collapsed"
-            )
-        
-        with scan_col2:
-            st.markdown("&nbsp;", unsafe_allow_html=True)
-            if st.button("🔎 Scan Today's Lines to Queue", use_container_width=True):
-        
-        with scan_col3:
-            st.markdown("&nbsp;", unsafe_allow_html=True)
-            if st.button("🧹 Clear Queue", use_container_width=True):
-            try:
-                odds_api_key = st.secrets["ODDS_API_KEY"]
-                props_df = shared_app.fetch_all_today_player_props(odds_api_key, queue_sportsbook)
+scan_col1, scan_col2, scan_col3 = st.columns([1, 1, 1])
 
-                if props_df is None or props_df.empty:
-                    status_placeholder.warning("No players with lines found for today's games.")
+with scan_col1:
+    st.markdown("Sportsbook")
+    queue_sportsbook = st.selectbox(
+        "Sportsbook",
+        options=sportsbook_options,
+        index=0,
+        key="queue_sportsbook",
+        label_visibility="collapsed"
+    )
+
+with scan_col2:
+    st.markdown("&nbsp;", unsafe_allow_html=True)
+    if st.button("🔎 Scan Today's Lines to Queue", use_container_width=True):
+        try:
+            odds_api_key = st.secrets["ODDS_API_KEY"]
+            props_df = shared_app.fetch_all_today_player_props(odds_api_key, queue_sportsbook)
+
+            if props_df is None or props_df.empty:
+                status_placeholder.warning("No players with lines found for today's games.")
+            else:
+                scan_df = props_df.copy()
+
+                scan_df = scan_df.dropna(subset=["player_name_raw", "line"]).copy()
+                scan_df["player_name_raw"] = scan_df["player_name_raw"].astype(str).str.strip()
+
+                scan_df = scan_df.sort_values(
+                    by=["player_name_raw", "last_update"],
+                    ascending=[True, False]
+                ).drop_duplicates(
+                    subset=["player_name_raw"],
+                    keep="first"
+                ).reset_index(drop=True)
+
+                existing_keys = {
+                    (
+                        str(item["player_name"]).strip(),
+                        str(item["sportsbook"]).strip().lower(),
+                        float(item["sportsbook_line"]),
+                    )
+                    for item in st.session_state.manual_add_queue
+                }
+
+                added_count = 0
+
+                for _, row in scan_df.iterrows():
+                    player_name = str(row["player_name_raw"]).strip()
+                    sportsbook_line = float(row["line"])
+                    sportsbook_key = str(queue_sportsbook).strip().lower()
+                    last_update = str(row.get("last_update", "") or "")
+
+                    queue_key = (player_name, sportsbook_key, sportsbook_line)
+
+                    if queue_key in existing_keys:
+                        continue
+
+                    st.session_state.manual_add_queue.append({
+                        "player_name": player_name,
+                        "sportsbook": sportsbook_key,
+                        "sportsbook_line": sportsbook_line,
+                        "last_update": last_update,
+                    })
+
+                    existing_keys.add(queue_key)
+                    added_count += 1
+
+                if added_count == 0:
+                    status_placeholder.info("0 lines added to queue. Queue already has today's lines.")
                 else:
-                    scan_df = props_df.copy()
+                    status_placeholder.success(f"{added_count} lines added to queue.")
 
-                    scan_df = scan_df.dropna(subset=["player_name_raw", "line"]).copy()
-                    scan_df["player_name_raw"] = scan_df["player_name_raw"].astype(str).str.strip()
+        except Exception as e:
+            status_placeholder.error(f"Scan failed: {e}")
 
-                    scan_df = scan_df.sort_values(
-                        by=["player_name_raw", "last_update"],
-                        ascending=[True, False]
-                    ).drop_duplicates(
-                        subset=["player_name_raw"],
-                        keep="first"
-                    ).reset_index(drop=True)
-
-                    existing_keys = {
-                        (
-                            str(item["player_name"]).strip(),
-                            str(item["sportsbook"]).strip().lower(),
-                            float(item["sportsbook_line"]),
-                        )
-                        for item in st.session_state.manual_add_queue
-                    }
-
-                    added_count = 0
-
-                    for _, row in scan_df.iterrows():
-                        player_name = str(row["player_name_raw"]).strip()
-                        sportsbook_line = float(row["line"])
-                        sportsbook_key = str(queue_sportsbook).strip().lower()
-                        last_update = str(row.get("last_update", "") or "")
-
-                        queue_key = (player_name, sportsbook_key, sportsbook_line)
-
-                        if queue_key in existing_keys:
-                            continue
-
-                        st.session_state.manual_add_queue.append({
-                            "player_name": player_name,
-                            "sportsbook": sportsbook_key,
-                            "sportsbook_line": sportsbook_line,
-                            "last_update": last_update,
-                        })
-
-                        existing_keys.add(queue_key)
-                        added_count += 1
-
-                    if added_count == 0:
-                        status_placeholder.info("0 lines added to queue. Queue already has today's lines.")
-                    else:
-                        status_placeholder.success(
-                            f"{added_count} lines added to queue."
-                        )
-
-            except Exception as e:
-                status_placeholder.error(f"Scan failed: {e}")
-
-    with scan_col3:
-        if st.button("🧹 Clear Queue", use_container_width=True):
-            st.session_state.manual_add_queue = []
-            status_placeholder.info("Queue cleared.")
+with scan_col3:
+    st.markdown("&nbsp;", unsafe_allow_html=True)
+    if st.button("🧹 Clear Queue", use_container_width=True):
+        st.session_state.manual_add_queue = []
+        status_placeholder.info("Queue cleared.")
 
     queue_df = pd.DataFrame(st.session_state.manual_add_queue)
 
