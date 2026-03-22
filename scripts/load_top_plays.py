@@ -6,10 +6,13 @@ import joblib
 import pandas as pd
 import unicodedata
 import gspread
+import random
 
 from google.oauth2.service_account import Credentials
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import playergamelog
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -19,6 +22,23 @@ SHEET_KEY = "1uhjV_Si-qcILfNJbKZrD52y4JnT_GvqQ0hzN7POekQM"
 BOOKMAKER_KEY = "draftkings"
 EDGE_THRESHOLD = 3.0
 TOP_PLAYS_LIMIT = 15
+NBA_STATS_HEADERS = {
+    "Host": "stats.nba.com",
+    "Connection": "keep-alive",
+    "Accept": "application/json, text/plain, */*",
+    "x-nba-stats-origin": "stats",
+    "x-nba-stats-token": "true",
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/122.0.0.0 Safari/537.36"
+    ),
+    "Referer": "https://www.nba.com/",
+    "Origin": "https://www.nba.com",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+}
 
 
 def get_gsheet_client():
@@ -55,7 +75,25 @@ def update_top_plays_live_sheet(df):
 
     return len(df)
 
+def build_nba_session():
+    session = requests.Session()
 
+    retry = Retry(
+        total=4,
+        connect=4,
+        read=4,
+        backoff_factor=1.5,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+        raise_on_status=False,
+    )
+
+    adapter = HTTPAdapter(max_retries=retry, pool_connections=20, pool_maxsize=20)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    session.headers.update(NBA_STATS_HEADERS)
+
+    return session
 
 def normalize_name(name: str) -> str:
     if not name:
@@ -232,20 +270,34 @@ def load_active_players():
     print(f"Active players mapped: {len(actual_name_to_id)}", flush=True)
     return actual_name_to_id, normalized_to_actual
 
-
+@st.cache_data(ttl=900)
 def get_player_gamelog_df(player_id, season):
-    for attempt in range(2):
+    for attempt in range(4):
         try:
-            return playergamelog.PlayerGameLog(
+            print(
+                f"Pulling gamelog for player_id={player_id} season={season} "
+                f"(attempt {attempt + 1}/4)",
+                flush=True,
+            )
+
+            df = playergamelog.PlayerGameLog(
                 player_id=player_id,
                 season=season,
-                timeout=12
+                timeout=25,
             ).get_data_frames()[0]
+
+            if df is not None and not df.empty:
+                sleep_time = random.uniform(0.4, 1.1)
+                time.sleep(sleep_time)
+                return df
+
         except Exception as e:
-            print(f"    Gamelog attempt {attempt + 1} failed: {e}", flush=True)
-            if attempt == 1:
-                return pd.DataFrame()
-            time.sleep(2)
+            wait_time = min(2 ** attempt + random.uniform(0.5, 1.5), 8)
+            print(f"Gamelog attempt {attempt + 1} failed: {e}", flush=True)
+            print(f"Waiting {wait_time:.1f}s before retry...", flush=True)
+            time.sleep(wait_time)
+
+    return pd.DataFrame()
 
 
 def build_player_feature_row(df, player_name):
@@ -586,6 +638,8 @@ def main():
 
         scored_row, _ = result
         add_scored_row(scored_map, scored_row)
+        
+        time.sleep(random.uniform(0.15, 0.45))
 
     if retry_rows:
         print(f"Starting retry pass for {len(retry_rows)} queued props...", flush=True)
@@ -614,6 +668,8 @@ def main():
 
             scored_row, _ = result
             add_scored_row(scored_map, scored_row)
+
+            time.sleep(random.uniform(0.15, 0.45))
 
     scored_count = len(scored_map)
     print(f"[TOP PLAYS] Scored rows: {scored_count}", flush=True)
