@@ -342,6 +342,17 @@ st.markdown("""
         box-shadow: 0 6px 18px rgba(0,0,0,0.18) !important;
     }
 
+    div[data-testid="stStatusWidget"] {
+        display: none !important;
+    }
+
+    .line-loading {
+        color: #94a3b8;
+        font-size: 0.9rem;
+        margin-top: 0.35rem;
+        margin-bottom: 0.35rem;
+    }
+
     @media (max-width: 640px) {
         .hero-title {
             font-size: 1.7rem;
@@ -812,12 +823,20 @@ live_line = None
 player_lines = None
 
 if selected_player and selected_book:
+    loading_placeholder = st.empty()
+    loading_placeholder.markdown(
+        '<div class="line-loading">Loading live sportsbook line...</div>',
+        unsafe_allow_html=True
+    )
+
     try:
         player_lines = get_player_points_lines(selected_player, selected_book)
         if player_lines:
             live_line = player_lines.get("points_line")
     except Exception as e:
         st.warning(f"Could not load sportsbook line: {e}")
+    finally:
+        loading_placeholder.empty()
 
 manual_default = float(live_line) if live_line is not None else 25.5
 
