@@ -757,7 +757,7 @@ st.markdown(
     f"""
 <div class="hero">
     <div class="hero-title">Edge Analytics - NBA</div>
-    <p class="hero-subtitle">Model-driven player insights and top play signals.</p>
+    <p class="hero-subtitle">Modle driven insights into NBA play point toal projections</p>
     <div class="hero-pills">
         <div class="hero-pill">Projected points</div>
         <div class="hero-pill">Top edges</div>
