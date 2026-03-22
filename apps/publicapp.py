@@ -74,7 +74,9 @@ st.set_page_config(
     page_icon="🏀",
     layout="centered",
 )
-st.autorefresh(interval=15000, key="live_refresh")
+
+from streamlit_autorefresh import st_autorefresh
+st_autorefresh(interval=15000, key="live_refresh")
 
 st.markdown("""
 <style>
