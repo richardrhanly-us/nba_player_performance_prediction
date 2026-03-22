@@ -18,7 +18,7 @@ from src.shared_app import (
     get_top_plays_today_df,
     get_available_sportsbooks,
     load_active_players,
-    append_manual_play_to_sheet1,
+    append_manual_play_to_sheet1
 )
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
