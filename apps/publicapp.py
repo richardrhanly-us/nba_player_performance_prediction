@@ -1,30 +1,31 @@
-import sys
 import os
+import sys
+from urllib.parse import quote_plus
+
+import gspread
 import pandas as pd
 import streamlit as st
-import gspread
-
-from urllib.parse import quote_plus
-from scipy.stats import norm
 from google.oauth2.service_account import Credentials
+from scipy.stats import norm
+from streamlit_autorefresh import st_autorefresh
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.shared_app import (
     APP_VERSION,
     CURRENT_SEASON,
-    normalize_name,
-    load_model,
-    load_model_stats,
-    load_active_players,
-    get_strong_plays_summary,
-    get_strong_plays_health,
+    build_player_feature_row,
+    get_available_sportsbooks,
+    get_live_player_stats,
     get_player_gamelog_df,
     get_player_info_df,
-    build_player_feature_row,
-    get_live_player_stats,
-    get_available_sportsbooks,
     get_player_points_lines,
+    get_strong_plays_health,
+    get_strong_plays_summary,
+    load_active_players,
+    load_model,
+    load_model_stats,
+    normalize_name,
 )
 
 try:
@@ -76,7 +77,6 @@ st.set_page_config(
     layout="centered",
 )
 
-from streamlit_autorefresh import st_autorefresh
 st_autorefresh(interval=15000, key="live_refresh")
 
 if "selected_player_from_top_play" not in st.session_state:
@@ -85,7 +85,9 @@ if "selected_player_from_top_play" not in st.session_state:
 if "selected_book_from_top_play" not in st.session_state:
     st.session_state.selected_book_from_top_play = "draftkings"
 
-st.markdown("""
+
+st.markdown(
+    """
 <style>
     .stApp {
         background: linear-gradient(180deg, #081120 0%, #0f172a 100%);
@@ -173,6 +175,12 @@ st.markdown("""
     }
 
     .top-play-card {
+        background: rgba(15,23,42,0.88);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 14px;
+        padding: 14px 16px;
+        margin-bottom: 10px;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.18);
         cursor: pointer;
         transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
     }
@@ -181,6 +189,24 @@ st.markdown("""
         transform: translateY(-2px);
         box-shadow: 0 8px 20px rgba(0,0,0,0.24);
         border-color: rgba(255,255,255,0.16);
+    }
+
+    .top-play-title {
+        font-size: 1.02rem;
+        font-weight: 800;
+        color: #f8fafc;
+        margin-bottom: 6px;
+    }
+
+    .top-play-sub {
+        color: #cbd5e1;
+        font-size: 0.92rem;
+        margin-bottom: 4px;
+    }
+
+    .top-play-meta {
+        color: #94a3b8;
+        font-size: 0.88rem;
     }
 
     .section-card {
@@ -314,33 +340,6 @@ st.markdown("""
         margin-top: 10px;
     }
 
-    .top-play-card {
-        background: rgba(15,23,42,0.88);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 14px;
-        padding: 14px 16px;
-        margin-bottom: 10px;
-        box-shadow: 0 4px 14px rgba(0,0,0,0.18);
-    }
-
-    .top-play-title {
-        font-size: 1.02rem;
-        font-weight: 800;
-        color: #f8fafc;
-        margin-bottom: 6px;
-    }
-
-    .top-play-sub {
-        color: #cbd5e1;
-        font-size: 0.92rem;
-        margin-bottom: 4px;
-    }
-
-    .top-play-meta {
-        color: #94a3b8;
-        font-size: 0.88rem;
-    }
-
     .stSelectbox label, .stNumberInput label {
         color: #e5e7eb !important;
         font-weight: 600;
@@ -371,18 +370,15 @@ st.markdown("""
         box-shadow: 0 6px 18px rgba(0,0,0,0.18) !important;
     }
 
+    div.stButton > button[kind="secondary"] {
+        width: 100%;
+    }
+
     div[data-testid="stStatusWidget"] {
         display: none !important;
     }
 
-    .line-loading {
-        color: #94a3b8;
-        font-size: 0.9rem;
-        margin-top: 0.35rem;
-        margin-bottom: 0.35rem;
-    }
-
-        div[data-testid="stSpinner"] {
+    div[data-testid="stSpinner"] {
         display: none !important;
     }
 
@@ -397,24 +393,22 @@ st.markdown("""
         margin-bottom: 0.35rem;
     }
 
-    div.stButton > button[kind="secondary"] {
-        width: 100%;
-    }
-    
-
     @media (max-width: 640px) {
         .hero-title {
             font-size: 1.7rem;
         }
     }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 
 def hex_to_rgba(hex_color: str, alpha: float) -> str:
     hex_color = hex_color.lstrip("#")
     if len(hex_color) != 6:
         return f"rgba(56,189,248,{alpha})"
+
     r = int(hex_color[0:2], 16)
     g = int(hex_color[2:4], 16)
     b = int(hex_color[4:6], 16)
@@ -427,6 +421,7 @@ def get_team_theme(team_abbr: str):
 
 def get_pick_label(edge):
     abs_edge = abs(edge)
+
     if abs_edge < 1.5:
         return "No Bet", "neutral"
     if abs_edge < 3.0:
@@ -441,42 +436,6 @@ def safe_live_display(value, fallback="N/A"):
         return fallback
     return str(value)
 
-@st.cache_data(ttl=60, show_spinner=False)
-def validate_top_plays(df):
-    validated_rows = []
-
-    for _, row in df.iterrows():
-        player_name = row.get("PLAYER_NAME")
-        sportsbook = str(row.get("sportsbook", "draftkings")).lower()
-
-        if not player_name:
-            continue
-
-        try:
-            current_line_data = get_player_points_lines(player_name, sportsbook)
-        except Exception:
-            current_line_data = None
-
-        if not current_line_data:
-            continue
-
-        current_line = current_line_data.get("points_line")
-        if current_line is None:
-            continue
-
-        try:
-            live_stats = get_live_player_stats(player_name)
-        except Exception:
-            live_stats = None
-
-        if live_stats:
-            game_status_text = str(live_stats.get("game_status", "")).upper()
-            if "FINAL" in game_status_text:
-                continue
-
-        validated_rows.append(row)
-
-    return pd.DataFrame(validated_rows)
 
 def format_minutes(minutes_str):
     if not minutes_str:
@@ -535,10 +494,8 @@ def parse_minutes_to_float(minutes_value):
             secs = float(s_part) if s_part else 0.0
 
         return mins + (secs / 60.0)
-
     except Exception:
         return None
-
 
 
 def get_live_adjusted_projection(predicted_points, live_stats):
@@ -593,6 +550,7 @@ def get_live_adjusted_projection(predicted_points, live_stats):
 
     return adjusted_projection
 
+
 def format_game_clock(clock_value):
     if not clock_value:
         return "0:00"
@@ -600,7 +558,6 @@ def format_game_clock(clock_value):
     text = str(clock_value).strip()
 
     try:
-        # Handle ISO format like PT02M44.00S
         if text.startswith("PT"):
             text = text.replace("PT", "")
 
@@ -618,7 +575,6 @@ def format_game_clock(clock_value):
 
             return f"{mins}:{secs:02d}"
 
-        # Already normal format
         if ":" in text:
             parts = text.split(":")
             if len(parts) == 2:
@@ -627,9 +583,9 @@ def format_game_clock(clock_value):
                 return f"{mins}:{secs:02d}"
 
         return text
-
     except Exception:
         return text
+
 
 def format_game_status_short(status):
     if not status:
@@ -652,11 +608,12 @@ def format_game_status_short(status):
 
     return str(status)
 
+
 @st.cache_resource
 def get_gsheet_client():
     creds = Credentials.from_service_account_info(
         st.secrets["gcp_service_account"],
-        scopes=SCOPES
+        scopes=SCOPES,
     )
     return gspread.authorize(creds)
 
@@ -796,7 +753,8 @@ def build_prediction(player_name, sportsbook_line):
     }
 
 
-st.markdown(f"""
+st.markdown(
+    f"""
 <div class="hero">
     <div class="hero-title">NBA Edge Lab</div>
     <p class="hero-subtitle">Model-driven player insights and top play signals.</p>
@@ -806,12 +764,12 @@ st.markdown(f"""
         <div class="hero-pill">Version: {APP_VERSION}</div>
     </div>
 </div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 top_games_win_rate, top_games_total = get_strong_plays_summary()
 health = get_strong_plays_health()
-
-
 
 if top_games_win_rate is not None:
     st.markdown(
@@ -823,7 +781,7 @@ if top_games_win_rate is not None:
             </div>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 else:
     st.markdown(
@@ -835,7 +793,7 @@ else:
             </div>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
 if health:
@@ -852,72 +810,61 @@ if health:
 try:
     top_plays_df = get_top_plays_live_df()
 
-    # Re-validate each saved play against the current sportsbook line
     validated_rows = []
-    
+
     for _, row in top_plays_df.iterrows():
         player_name = row.get("PLAYER_NAME")
         sportsbook = str(row.get("sportsbook", "draftkings")).lower()
-    
+
         if not player_name:
             continue
-    
+
         try:
             current_line_data = get_player_points_lines(player_name, sportsbook)
         except Exception:
             current_line_data = None
-    
-        # If no current sportsbook line exists, drop the row
+
         if not current_line_data:
             continue
-    
+
         current_line = current_line_data.get("points_line")
         if current_line is None:
             continue
-    
-        # Optional: also drop if game is already final
+
         try:
             live_stats = get_live_player_stats(player_name)
         except Exception:
             live_stats = None
-    
+
         if live_stats:
             game_status_text = str(live_stats.get("game_status", "")).upper()
             if "FINAL" in game_status_text:
                 continue
-    
+
         validated_rows.append(row)
-    
+
     top_plays_df = pd.DataFrame(validated_rows)
-    
-    # Clean numeric line
+
     top_plays_df["sportsbook_line"] = pd.to_numeric(
         top_plays_df.get("sportsbook_line"),
-        errors="coerce"
+        errors="coerce",
     )
-    
-    # 🚫 Remove rows with no real line
-    top_plays_df = top_plays_df[
-        top_plays_df["sportsbook_line"].notna()
-    ].copy()
-    
-    top_plays_df = top_plays_df[
-        top_plays_df["sportsbook_line"] > 0
-    ].copy()
 
-    #  Remove fake fallback lines (like default 25.5)
-    top_plays_df = top_plays_df[
-        top_plays_df["sportsbook_line"] != 25.5
-    ].copy()
+    top_plays_df = top_plays_df[top_plays_df["sportsbook_line"].notna()].copy()
+    top_plays_df = top_plays_df[top_plays_df["sportsbook_line"] > 0].copy()
+    top_plays_df = top_plays_df[top_plays_df["sportsbook_line"] != 25.5].copy()
 
     if "sportsbook_line" in top_plays_df.columns:
-        top_plays_df["sportsbook_line"] = pd.to_numeric(top_plays_df["sportsbook_line"], errors="coerce")
-    
+        top_plays_df["sportsbook_line"] = pd.to_numeric(
+            top_plays_df["sportsbook_line"],
+            errors="coerce",
+        )
+
     if "game_status" in top_plays_df.columns:
         top_plays_df = top_plays_df[
             ~top_plays_df["game_status"].astype(str).str.upper().str.contains("FINAL", na=False)
         ].copy()
-    
+
     top_plays_df = top_plays_df[top_plays_df["sportsbook_line"].notna()].copy()
     top_plays_df = top_plays_df[top_plays_df["sportsbook_line"] > 0].copy()
 
@@ -926,7 +873,7 @@ try:
     else:
         st.markdown("###  Top 3 Plays")
         st.markdown("##### Highest confidence plays of the day")
-        
+
         top3 = top_plays_df.head(3)
         for _, row in top3.iterrows():
             edge_val = pd.to_numeric(row.get("edge"), errors="coerce")
@@ -936,13 +883,13 @@ try:
             pick = row.get("model_pick", "")
             matchup = f"{row.get('away_team', '')} @ {row.get('home_team', '')}"
             book_name = str(row.get("sportsbook", "draftkings")).lower()
-        
+
             line_text = f"{line_val:.1f}" if pd.notna(line_val) else "N/A"
             pred_text = f"{pred_val:.2f}" if pd.notna(pred_val) else "N/A"
             edge_text = f"{edge_val:+.2f}" if pd.notna(edge_val) else "N/A"
-        
+
             href = f"?player={quote_plus(player_name)}&book={quote_plus(book_name)}"
-        
+
             st.markdown(
                 f"""
                 <a class="top-play-link" href="{href}">
@@ -953,10 +900,14 @@ try:
                     </div>
                 </a>
                 """,
-                unsafe_allow_html=True
+                unsafe_allow_html=True,
             )
-        
-        st.markdown('<div class="section-card"><div class="section-title">Top Plays Today</div>', unsafe_allow_html=True)
+
+        st.markdown(
+            '<div class="section-card"><div class="section-title">Top Plays Today</div>',
+            unsafe_allow_html=True,
+        )
+
         display_cols = [
             col for col in [
                 "PLAYER_NAME",
@@ -967,20 +918,23 @@ try:
                 "edge",
                 "model_pick",
                 "sportsbook",
-            ] if col in top_plays_df.columns
+            ]
+            if col in top_plays_df.columns
         ]
 
         display_df = top_plays_df[display_cols].copy()
-        display_df = display_df.rename(columns={
-            "PLAYER_NAME": "Player",
-            "away_team": "Away",
-            "home_team": "Home",
-            "sportsbook_line": "Line",
-            "predicted_points": "Projection",
-            "edge": "Edge",
-            "model_pick": "Best Bet",
-            "sportsbook": "Book",
-        })
+        display_df = display_df.rename(
+            columns={
+                "PLAYER_NAME": "Player",
+                "away_team": "Away",
+                "home_team": "Home",
+                "sportsbook_line": "Line",
+                "predicted_points": "Projection",
+                "edge": "Edge",
+                "model_pick": "Best Bet",
+                "sportsbook": "Book",
+            }
+        )
 
         def row_color(row):
             edge = row.get("Edge")
@@ -1003,17 +957,19 @@ try:
             display_df.head(10)
             .style
             .apply(row_color, axis=1)
-            .format({
-                "Line": "{:.1f}",
-                "Projection": "{:.2f}",
-                "Edge": "{:+.2f}",
-            })
+            .format(
+                {
+                    "Line": "{:.1f}",
+                    "Projection": "{:.2f}",
+                    "Edge": "{:+.2f}",
+                }
+            )
         )
 
         st.dataframe(
             styled_df,
             use_container_width=True,
-            hide_index=True
+            hide_index=True,
         )
         st.caption("Top plays are prebuilt from the latest updater run for faster loading.")
 except Exception as e:
@@ -1021,8 +977,10 @@ except Exception as e:
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-st.markdown('<div class="section-card"><div class="section-title">Player Projection</div>', unsafe_allow_html=True)
-
+st.markdown(
+    '<div class="section-card"><div class="section-title">Player Projection</div>',
+    unsafe_allow_html=True,
+)
 
 query_params = st.query_params
 query_player = query_params.get("player")
@@ -1040,12 +998,17 @@ selected_player = st.selectbox(
     options=player_names,
     index=player_index,
     placeholder="Start typing a player name...",
-    key="player_projection_selectbox"
+    key="player_projection_selectbox",
 )
 
 sportsbooks = get_available_sportsbooks()
 
-default_book = (query_book or st.session_state.get("selected_book_from_top_play") or "draftkings").lower()
+default_book = (
+    query_book or
+    st.session_state.get("selected_book_from_top_play") or
+    "draftkings"
+).lower()
+
 book_index = 0
 if default_book in sportsbooks:
     book_index = sportsbooks.index(default_book)
@@ -1055,7 +1018,7 @@ selected_book = st.selectbox(
     options=sportsbooks,
     index=book_index if sportsbooks else None,
     placeholder="Choose a sportsbook...",
-    key="sportsbook_selectbox"
+    key="sportsbook_selectbox",
 )
 
 st.session_state.selected_player_from_top_play = selected_player
@@ -1068,7 +1031,7 @@ if selected_player and selected_book:
     loading_placeholder = st.empty()
     loading_placeholder.markdown(
         '<div class="line-loading">Loading live sportsbook line...</div>',
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
     try:
@@ -1088,7 +1051,7 @@ sportsbook_line = st.number_input(
     max_value=80.0,
     value=manual_default,
     step=0.5,
-    key=f"sportsbook_line_{selected_player}_{selected_book}"
+    key=f"sportsbook_line_{selected_player}_{selected_book}",
 )
 
 line_is_live = live_line is not None
@@ -1106,7 +1069,7 @@ if selected_player:
     if result.get("live_stats"):
         game_status_text = str(result["live_stats"].get("game_status", "")).upper()
         game_is_final = "FINAL" in game_status_text
-    
+
     if game_is_final and not line_is_live:
         st.warning("This game is final and no live sportsbook line is available. Projection is hidden.")
         st.markdown("</div>", unsafe_allow_html=True)
@@ -1225,7 +1188,6 @@ if selected_player:
                 f"Live-adjusted projection: {predicted_points:.2f}"
             )
 
-
         if over_prob is not None and under_prob is not None:
             prob_col1, prob_col2 = st.columns(2)
 
@@ -1237,7 +1199,7 @@ if selected_player:
                         <div class="mini-value">{over_prob * 100:.1f}%</div>
                     </div>
                     """,
-                    unsafe_allow_html=True
+                    unsafe_allow_html=True,
                 )
 
             with prob_col2:
@@ -1248,7 +1210,7 @@ if selected_player:
                         <div class="mini-value">{under_prob * 100:.1f}%</div>
                     </div>
                     """,
-                    unsafe_allow_html=True
+                    unsafe_allow_html=True,
                 )
 
         if live_stats:
@@ -1264,7 +1226,7 @@ if selected_player:
                         <div class="mini-value">{safe_live_display(live_stats.get('points', 'N/A'))}</div>
                     </div>
                     """,
-                    unsafe_allow_html=True
+                    unsafe_allow_html=True,
                 )
 
             with live_col2:
@@ -1275,7 +1237,7 @@ if selected_player:
                         <div class="mini-value">{format_minutes(live_stats.get('minutes'))}</div>
                     </div>
                     """,
-                    unsafe_allow_html=True
+                    unsafe_allow_html=True,
                 )
 
             with live_col3:
@@ -1289,7 +1251,7 @@ if selected_player:
                         <div class="mini-value">{game_status} • {game_clock}</div>
                     </div>
                     """,
-                    unsafe_allow_html=True
+                    unsafe_allow_html=True,
                 )
 
         subcol1, subcol2, subcol3 = st.columns(3)
@@ -1303,7 +1265,7 @@ if selected_player:
                     <div class="mini-value">{season_text}</div>
                 </div>
                 """,
-                unsafe_allow_html=True
+                unsafe_allow_html=True,
             )
 
         with subcol2:
@@ -1315,7 +1277,7 @@ if selected_player:
                     <div class="mini-value">{last5_text}</div>
                 </div>
                 """,
-                unsafe_allow_html=True
+                unsafe_allow_html=True,
             )
 
         with subcol3:
@@ -1326,5 +1288,5 @@ if selected_player:
                     <div class="mini-value">{games_used}</div>
                 </div>
                 """,
-                unsafe_allow_html=True
+                unsafe_allow_html=True,
             )
