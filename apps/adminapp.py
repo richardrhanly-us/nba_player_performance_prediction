@@ -490,7 +490,7 @@ with operations_tab:
     row2_col1, row2_col2 = st.columns(2)
 
     with row1_col1:
-        if st.button("Update Final Results", use_container_width=True):
+        if st.button("📊 Update Final Results", use_container_width=True):
             status_placeholder.info("Checking pending rows and updating final results...")
             try:
                 updated_count, checked_count = update_all_pending_sheet_results()
@@ -517,7 +517,7 @@ with operations_tab:
                 status_placeholder.error(f"Batch update failed: {e}")
 
     with row1_col2:
-        if st.button("Retry Pending Results", use_container_width=True):
+        if st.button("♻️ Retry Pending Results", use_container_width=True):
             status_placeholder.info("Retrying pending or ungraded rows...")
             try:
                 updated_count, checked_count = update_all_pending_sheet_results()
@@ -544,7 +544,7 @@ with operations_tab:
                 status_placeholder.error(f"Retry failed: {e}")
 
     with row2_col1:
-        if st.button("Rebuild Top Plays Live", use_container_width=True):
+        if st.button("📈 Rebuild Top Plays Live", use_container_width=True):
             status_placeholder.info("Top Plays Live rebuild is not wired yet.")
             write_admin_log(
                 action="rebuild_top_plays_live",
