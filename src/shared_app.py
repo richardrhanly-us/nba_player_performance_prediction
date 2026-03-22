@@ -504,7 +504,7 @@ def fetch_player_points_market(api_key, event_id, bookmaker_key):
     return resp.json()
 
 
-def fetch_all_today_player_props(api_key, bookmaker_key=BOOKMAKER_KEY):
+def fetch_all_today_player_props(api_key, bookmaker_key):
     events = fetch_upcoming_nba_events(api_key)
     rows = []
 
