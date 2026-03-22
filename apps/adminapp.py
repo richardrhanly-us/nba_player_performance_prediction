@@ -1059,7 +1059,7 @@ with operations_tab:
                     failed_items.append(f"{item['player_name']} | {item['sportsbook']} {item['sportsbook_line']} | {e}")
 
                 progress_bar.progress(idx / total_items)
-                time.sleep(0.1.25)
+                time.sleep(1.25)
 
             st.session_state.manual_add_queue = []
             st.cache_data.clear()
