@@ -859,19 +859,26 @@ def update_all_pending_sheet_results(debug=False):
     values = sheet.get_all_values()
 
     if not values or len(values) < 2:
+        if debug:
+            return {
+                "rows_scanned": 0,
+                "pending_rows_found": 0,
+                "rows_skipped_not_final": 0,
+                "rows_skipped_missing_player_date": 0,
+                "rows_skipped_other": 0,
+                "rows_updated": 0,
+                "row_debug": [],
+            }
         return 0, 0
 
     headers = values[0]
     rows = values[1:]
     df = pd.DataFrame(rows, columns=headers)
 
-
-    
     required_cols = ["PLAYER_NAME", "GAME_DATE", "sportsbook_line", "model_pick", "bet_status"]
     if any(col not in df.columns for col in required_cols):
         raise ValueError("Strong Plays sheet is missing required columns.")
 
-    
     updated_count = 0
     checked_count = 0
     rows_scanned = 0
@@ -879,37 +886,130 @@ def update_all_pending_sheet_results(debug=False):
     rows_skipped_not_final = 0
     rows_skipped_missing_player_date = 0
     rows_skipped_other = 0
-    rows_updated = 0
     row_debug = []
+
+    today = pd.Timestamp.now(tz="America/Chicago").date()
 
     for idx, row in df.iterrows():
         rows_scanned += 1
+
         bet_status = str(row.get("bet_status", "")).strip().upper()
         if bet_status != "PENDING":
             continue
 
+        pending_rows_found += 1
         checked_count += 1
 
-        player_name = row.get("PLAYER_NAME", "")
-        game_date = row.get("GAME_DATE", "")
+        player_name = str(row.get("PLAYER_NAME", "")).strip()
+        game_date = str(row.get("GAME_DATE", "")).strip()
         sportsbook_line = row.get("sportsbook_line", "")
         model_pick = row.get("model_pick", "")
 
-        final_points = get_final_points_from_gamelog(player_name, game_date)
-        if final_points is None:
+        sheet_row_number = idx + 2
+
+        if not player_name or not game_date:
+            rows_skipped_missing_player_date += 1
+            if debug:
+                row_debug.append({
+                    "row_number": sheet_row_number,
+                    "player_name": player_name,
+                    "game_date": game_date,
+                    "status": "skipped_missing_player_date",
+                    "details": "Missing player name or game date",
+                })
             continue
 
-        sheet_row_number = idx + 2
-        success = update_sheet_with_final_result(
-            row_number=sheet_row_number,
-            final_points=final_points,
-            sportsbook_line=sportsbook_line,
-            model_pick=model_pick
-        )
+        try:
+            parsed_game_date = pd.to_datetime(game_date).date()
+        except Exception:
+            rows_skipped_missing_player_date += 1
+            if debug:
+                row_debug.append({
+                    "row_number": sheet_row_number,
+                    "player_name": player_name,
+                    "game_date": game_date,
+                    "status": "skipped_bad_game_date",
+                    "details": "Could not parse game date",
+                })
+            continue
 
-        if success:
-            updated_count += 1
-            time.sleep(0.4)
+        if parsed_game_date >= today:
+            rows_skipped_not_final += 1
+            if debug:
+                row_debug.append({
+                    "row_number": sheet_row_number,
+                    "player_name": player_name,
+                    "game_date": game_date,
+                    "status": "skipped_not_final",
+                    "details": "Game date is today or later, likely not final yet",
+                })
+            continue
+
+        final_points = get_final_points_from_gamelog(player_name, game_date)
+        if final_points is None:
+            rows_skipped_not_final += 1
+            if debug:
+                row_debug.append({
+                    "row_number": sheet_row_number,
+                    "player_name": player_name,
+                    "game_date": game_date,
+                    "status": "skipped_not_final_or_not_found",
+                    "details": "No final points found in gamelog",
+                })
+            continue
+
+        try:
+            success = update_sheet_with_final_result(
+                row_number=sheet_row_number,
+                final_points=final_points,
+                sportsbook_line=sportsbook_line,
+                model_pick=model_pick
+            )
+
+            if success:
+                updated_count += 1
+                if debug:
+                    row_debug.append({
+                        "row_number": sheet_row_number,
+                        "player_name": player_name,
+                        "game_date": game_date,
+                        "status": "updated",
+                        "details": f"final_points={final_points}",
+                    })
+                time.sleep(0.4)
+            else:
+                rows_skipped_other += 1
+                if debug:
+                    row_debug.append({
+                        "row_number": sheet_row_number,
+                        "player_name": player_name,
+                        "game_date": game_date,
+                        "status": "skipped_other",
+                        "details": "update_sheet_with_final_result returned False",
+                    })
+
+        except Exception as e:
+            rows_skipped_other += 1
+            if debug:
+                row_debug.append({
+                    "row_number": sheet_row_number,
+                    "player_name": player_name,
+                    "game_date": game_date,
+                    "status": "skipped_other",
+                    "details": str(e),
+                })
 
     st.cache_data.clear()
+
+    if debug:
+        return {
+            "rows_scanned": rows_scanned,
+            "pending_rows_found": pending_rows_found,
+            "rows_skipped_not_final": rows_skipped_not_final,
+            "rows_skipped_missing_player_date": rows_skipped_missing_player_date,
+            "rows_skipped_other": rows_skipped_other,
+            "rows_updated": updated_count,
+            "row_debug": row_debug,
+        }
+
     return updated_count, checked_count
