@@ -7,7 +7,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from google.oauth2.service_account import Credentials
 import gspread
-from shared_app import normalize_name
+import unicodedata
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import src.shared_app as shared_app
@@ -288,6 +288,12 @@ def get_usage_logs_df():
         print(f"[ERROR] get_usage_logs_df failed: {e}")
         return pd.DataFrame(columns=expected_cols)
 
+def normalize_name(name):
+    if not isinstance(name, str):
+        return ""
+    name = unicodedata.normalize("NFKD", name)
+    name = name.encode("ascii", "ignore").decode("ascii")
+    return name.strip().lower()
 
 def get_historical_lines_sheet():
     client = get_gsheet_client()
