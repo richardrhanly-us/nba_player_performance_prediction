@@ -2,6 +2,7 @@ import time
 
 from src.shared_app import (
     append_manual_play_to_sheet1,
+    format_event_game_date,
     get_strong_plays_df,
     get_top_plays_today_df,
     update_top_plays_live_sheet,
@@ -66,6 +67,8 @@ def main():
         predicted_points = row.get("predicted_points", "")
         model_pick = row.get("model_pick", "")
         game_date = row.get("GAME_DATE", "")
+        if not game_date:
+            game_date = format_event_game_date(row.get("commence_time", ""))
 
         if already_logged(records_df, player_name, game_date, sportsbook, line):
             print(
