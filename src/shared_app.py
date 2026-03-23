@@ -729,18 +729,24 @@ def get_player_points_lines(player_name, bookmaker_key):
 @st.cache_data(ttl=300, show_spinner=False)
 def get_top_plays_today_df(api_key, debug=False):
     print("[PIPELINE] START get_top_plays_today_df", flush=True)
+
     model = load_model()
     actual_name_to_id, normalized_to_actual = load_active_players()
     model_feature_names = list(getattr(model, "feature_names_in_", []))
 
+    print("[PIPELINE] Fetching props dataframe...", flush=True)
     props_df = fetch_all_today_player_props(api_key, BOOKMAKER_KEY)
+    print(f"[PIPELINE] Props dataframe rows: {len(props_df)}", flush=True)
+
     if props_df.empty:
+        print("[PIPELINE] No props returned", flush=True)
         return pd.DataFrame()
 
-    print("[PIPELINE] Fetching odds...", flush=True)
     props_df = props_df.head(10).copy()
     props_df["normalized_name"] = props_df["player_name_raw"].apply(normalize_name)
     props_df = props_df.drop_duplicates(subset=["normalized_name"]).copy()
+
+    print(f"[PIPELINE] Unique player rows after dedupe: {len(props_df)}", flush=True)
 
     rows = []
     gamelog_cache = {}
@@ -748,15 +754,16 @@ def get_top_plays_today_df(api_key, debug=False):
 
     status_box = None
     progress_bar = None
-    print(f"[PIPELINE] Built dataframe with {len(df)} rows", flush=True)
-    
+
     if debug:
         status_box = st.empty()
         progress_bar = st.progress(0)
 
-    print("[PIPELINE] Filtering for top plays...", flush=True)
+    print("[PIPELINE] Beginning scoring loop...", flush=True)
+
     for i, (_, row) in enumerate(props_df.iterrows(), start=1):
         raw_name = row["player_name_raw"]
+        print(f"[PIPELINE] Scoring player {i}/{total_rows}: {raw_name}", flush=True)
 
         if debug:
             status_box.markdown(
@@ -774,10 +781,12 @@ def get_top_plays_today_df(api_key, debug=False):
         normalized = normalize_name(raw_name)
         actual_name = normalized_to_actual.get(normalized)
         if not actual_name:
+            print(f"[PIPELINE] Skip: no active player match for {raw_name}", flush=True)
             continue
 
         player_id = actual_name_to_id.get(actual_name)
         if not player_id:
+            print(f"[PIPELINE] Skip: no player_id for {actual_name}", flush=True)
             continue
 
         if player_id in gamelog_cache:
@@ -788,10 +797,12 @@ def get_top_plays_today_df(api_key, debug=False):
                 gamelog_cache[player_id] = df
 
         if df.empty:
+            print(f"[PIPELINE] Skip: empty gamelog for {actual_name}", flush=True)
             continue
 
         X = build_player_feature_row(df, actual_name)
         if X is None or X.empty:
+            print(f"[PIPELINE] Skip: no feature row for {actual_name}", flush=True)
             continue
 
         if model_feature_names:
@@ -800,10 +811,16 @@ def get_top_plays_today_df(api_key, debug=False):
         predicted_points = float(model.predict(X)[0])
         line = safe_float(row["line"])
         if line is None:
+            print(f"[PIPELINE] Skip: invalid line for {actual_name}", flush=True)
             continue
 
         edge = predicted_points - line
         if abs(edge) < EDGE_THRESHOLD:
+            print(
+                f"[PIPELINE] Skip: edge below threshold for {actual_name} "
+                f"(edge={round(edge, 2)}, threshold={EDGE_THRESHOLD})",
+                flush=True
+            )
             continue
 
         rows.append({
@@ -835,29 +852,14 @@ def get_top_plays_today_df(api_key, debug=False):
         status_box.empty()
         progress_bar.empty()
 
+    print(f"[PIPELINE] Rows that passed edge threshold: {len(rows)}", flush=True)
+
     if not rows:
+        print("[PIPELINE] No rows passed edge threshold", flush=True)
         return pd.DataFrame()
 
     top_df = pd.DataFrame(rows)
     top_df = top_df.sort_values("edge", ascending=False, key=lambda s: s.abs()).reset_index(drop=True)
-    print(f"[PIPELINE] Returning {len(top_df)} top plays", flush=True)
+
+    print(f"[PIPELINE] Returning top_df with {len(top_df)} rows", flush=True)
     return top_df
-
-
-
-    df = get_player_gamelog_df(player_id, CURRENT_SEASON)
-    if df.empty or "GAME_DATE" not in df.columns:
-        return None
-
-    df = df.copy()
-    df["GAME_DATE_NORM"] = pd.to_datetime(df["GAME_DATE"], errors="coerce").dt.strftime("%B %d, %Y")
-    target_date = normalize_sheet_date(game_date)
-
-    match_df = df[df["GAME_DATE_NORM"] == target_date]
-    if match_df.empty:
-        return None
-
-    final_points = safe_float(match_df.iloc[0].get("PTS"))
-    return final_points
-
-
