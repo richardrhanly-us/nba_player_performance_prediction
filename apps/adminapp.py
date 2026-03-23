@@ -963,7 +963,6 @@ with operations_tab:
                     scan_df = scan_df.dropna(subset=["player_name_raw", "line"]).copy()
                     scan_df["player_name_raw"] = scan_df["player_name_raw"].astype(str).str.strip()
 
-
                     # Save today's lines to Historical Lines sheet
                     historical_ws = get_historical_lines_sheet()
 
@@ -972,21 +971,30 @@ with operations_tab:
                     existing_keys = set()
                     if len(existing_values) > 1:
                         for row in existing_values[1:]:
-                            if len(row) >= 4:
+                            if len(row) >= 5:
                                 existing_player = str(row[0]).strip()
                                 existing_date = str(row[1]).strip()
                                 existing_line = str(row[2]).strip()
                                 existing_book = str(row[3]).strip().lower()
+                                existing_captured_at = str(row[4]).strip()
 
-                                if existing_player and existing_date and existing_line and existing_book:
+                                if (
+                                    existing_player
+                                    and existing_date
+                                    and existing_line
+                                    and existing_book
+                                    and existing_captured_at
+                                ):
                                     existing_keys.add((
                                         existing_player,
                                         existing_date,
                                         existing_line,
-                                        existing_book
+                                        existing_book,
+                                        existing_captured_at
                                     ))
 
                     today_date = datetime.now(ZoneInfo("America/Chicago")).strftime("%Y-%m-%d")
+                    captured_at = datetime.now(ZoneInfo("America/Chicago")).strftime("%Y-%m-%d %H:%M:%S")
 
                     rows_to_append = []
 
@@ -999,7 +1007,8 @@ with operations_tab:
                             player_name,
                             today_date,
                             sportsbook_line,
-                            sportsbook_name
+                            sportsbook_name,
+                            captured_at
                         )
 
                         if history_key not in existing_keys:
@@ -1007,7 +1016,8 @@ with operations_tab:
                                 player_name,
                                 today_date,
                                 sportsbook_line,
-                                sportsbook_name
+                                sportsbook_name,
+                                captured_at
                             ])
                             existing_keys.add(history_key)
 
@@ -1019,6 +1029,7 @@ with operations_tab:
                         print(f"Historical Lines updated: {len(rows_to_append)} new rows")
                     else:
                         print("Historical Lines already up to date")
+
                     
                     
                     scan_df = scan_df.sort_values(
