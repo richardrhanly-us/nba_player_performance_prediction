@@ -72,7 +72,8 @@ def main():
     print("[TOP PLAYS] ===== START WORKFLOW =====", flush=True)
     print("[TOP PLAYS] Building top plays from shared pipeline...", flush=True)
 
-    top_df = get_top_plays_today_df(debug=False)
+    odds_api_key = os.environ["ODDS_API_KEY"]
+    top_df = get_top_plays_today_df(api_key=odds_api_key, debug=False)
 
     if top_df is None or top_df.empty:
         print("[TOP PLAYS] No qualifying top plays returned from shared pipeline.", flush=True)
