@@ -6,13 +6,13 @@ import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.shared_app import (
-    append_play_to_strong_plays,
     get_strong_plays_df,
     get_top_plays_today_df,
     get_gsheet_client,
     SHEET_KEY,
 )
 
+from src.write_ops import append_play_to_strong_plays
 
 def log(msg):
     print(msg, flush=True)
