@@ -3,9 +3,9 @@ pandas
 joblib
 scipy
 nba_api
-scikit-learn
+scikit-learn==1.6.1
 pytz
 streamlit-searchbox
 gspread
-oauth2client
-streamlit-autorefresh
+google-auth
+requests
