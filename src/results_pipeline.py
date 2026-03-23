@@ -249,6 +249,31 @@ def update_all_pending_sheet_results(
             f"{source_sheet_name} is missing required columns: {', '.join(missing_cols)}"
         )
 
+    df = df.copy()
+    df["bet_status"] = df["bet_status"].astype(str).str.strip().str.upper()
+
+    pending_mask = df.apply(is_pending_result_row, axis=1)
+    pending_df = df[pending_mask].copy()
+
+    if pending_df.empty:
+        empty_result = {
+            "source_sheet": source_sheet_name,
+            "total_data_rows_loaded": len(df),
+            "rows_scanned": 0,
+            "pending_rows_found": 0,
+            "rows_skipped_not_final": 0,
+            "rows_skipped_missing_player_date": 0,
+            "rows_skipped_other": 0,
+            "rows_updated": 0,
+            "row_debug": [],
+        }
+
+        if debug and status_box is not None:
+            status_box.info(f"No pending rows found in {source_sheet_name}.")
+            progress_bar.progress(1.0)
+
+        return empty_result if debug else (0, 0)
+
     header_index_map = build_header_index_map(headers)
 
     historical_ws = get_historical_lines_sheet()
@@ -274,9 +299,10 @@ def update_all_pending_sheet_results(
     gamelog_cache = {}
 
     today = pd.Timestamp.now(tz="America/Chicago").date()
-    total_rows = len(df)
-
-    for idx, row in df.iterrows():
+    total_rows = len(pending_df)
+    
+    pending_rows_found = total_rows
+    for rows_scanned, (idx, row) in enumerate(pending_df.iterrows(), start=1):
         rows_scanned += 1
         sheet_row_number = idx + 2
 
@@ -317,7 +343,7 @@ def update_all_pending_sheet_results(
                 })
             continue
 
-        pending_rows_found += 1
+        
         checked_count += 1
 
         if not player_name or not game_date:
