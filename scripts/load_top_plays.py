@@ -14,6 +14,7 @@ from src.shared_app import (
 
 from src.write_ops import append_play_to_strong_plays
 
+
 def log(msg):
     print(msg, flush=True)
 
@@ -77,11 +78,10 @@ def main():
     start_time = time.time()
     log("[TOP PLAYS] ===== START WORKFLOW =====")
     log("[TOP PLAYS] Calling get_top_plays_today_df()...")
-    
+
     odds_api_key = os.environ["ODDS_API_KEY"]
-    
-    top_df = get_top_plays_today_df(api_key=odds_api_key, debug=True)
-    
+    top_df = get_top_plays_today_df(api_key=odds_api_key, debug=False)
+
     log("[TOP PLAYS] Returned from get_top_plays_today_df()")
 
     if top_df is None or top_df.empty:
@@ -89,6 +89,7 @@ def main():
         rows_written = update_top_plays_live_sheet(top_df)
         log(f"[TOP PLAYS] DONE | final={rows_written} | appended=0")
         log(f"[TOP PLAYS] Runtime: {round(time.time() - start_time, 2)} seconds")
+        log("[TOP PLAYS] ===== END WORKFLOW =====")
         return
 
     log(f"[TOP PLAYS] Final top plays: {len(top_df)}")
