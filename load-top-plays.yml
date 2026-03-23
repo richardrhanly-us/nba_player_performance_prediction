@@ -1,0 +1,32 @@
+name: Load Top Plays
+
+on:
+  schedule:
+    - cron: "0 16 * * *"
+    - cron: "0 20 * * *"
+    - cron: "30 23 * * *"
+  workflow_dispatch:
+
+jobs:
+  load-top-plays:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install pandas gspread google-auth nba_api requests joblib scipy scikit-learn==1.6.1 streamlit
+
+      - name: Load top plays
+        env:
+          GCP_SERVICE_ACCOUNT_JSON: ${{ secrets.GCP_SERVICE_ACCOUNT_JSON }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: |
+          python scripts/load_top_plays.py
