@@ -453,6 +453,11 @@ def build_sheet1_debug_summary(df):
         "pending_df": pending_df,
     }
 
+st.cache_data.clear()
+st.cache_resource.clear()
+shared_app.st.cache_data.clear()
+shared_app.st.cache_resource.clear()
+st.success("Caches cleared")
 
 def load_strong_plays_df():
     try:
