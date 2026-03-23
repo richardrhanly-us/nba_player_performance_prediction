@@ -25,21 +25,6 @@ RESULTS_SHEET_NAME = "Sheet1"
 STRONG_PLAYS_SHEET_NAME = "Strong Plays"
 
 
-def is_running_in_streamlit():
-    try:
-        from streamlit.runtime.scriptrunner import get_script_run_ctx
-        return get_script_run_ctx() is not None
-    except Exception:
-        return False
-
-
-def clear_streamlit_cache_safely():
-    try:
-        if is_running_in_streamlit():
-            st.cache_data.clear()
-            st.cache_resource.clear()
-    except Exception:
-        pass
 
 def normalize_name(name: str) -> str:
     if not name:
