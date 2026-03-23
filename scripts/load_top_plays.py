@@ -7,7 +7,6 @@ import time
 
 from src.shared_app import (
     append_manual_play_to_sheet1,
-    format_event_game_date,
     get_strong_plays_df,
     get_top_plays_today_df,
     update_top_plays_live_sheet,
