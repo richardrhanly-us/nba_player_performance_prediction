@@ -9,3 +9,5 @@ streamlit-searchbox
 gspread
 google-auth
 requests
+streamlit-autorefresh
+oauth2client
