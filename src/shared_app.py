@@ -25,6 +25,22 @@ RESULTS_SHEET_NAME = "Sheet1"
 STRONG_PLAYS_SHEET_NAME = "Strong Plays"
 
 
+def is_running_in_streamlit():
+    try:
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+        return get_script_run_ctx() is not None
+    except Exception:
+        return False
+
+
+def clear_streamlit_cache_safely():
+    try:
+        if is_running_in_streamlit():
+            clear_streamlit_cache_safely()
+            clear_streamlit_cache_safely()
+    except Exception:
+        pass
+
 def normalize_name(name: str) -> str:
     if not name:
         return ""
@@ -217,7 +233,7 @@ def append_manual_play_to_sheet1(player_name, sportsbook_key, sportsbook_line=No
     ]]
 
     sheet.update(range_name=f"A{next_row}:K{next_row}", values=row_values)
-    st.cache_data.clear()
+    clear_streamlit_cache_safely()
 
     return {
         "player_name": actual_name,
@@ -1090,7 +1106,7 @@ def update_sheet_with_final_result(
         return False
 
     worksheet.batch_update(batch_payload)
-    st.cache_data.clear()
+    clear_streamlit_cache_safely()
     return True
 
 
@@ -1298,7 +1314,7 @@ def update_all_pending_sheet_results(debug=False):
                     "details": str(e),
                 })
 
-    st.cache_data.clear()
+    clear_streamlit_cache_safely()
 
     result = {
         "source_sheet": source_sheet_name,
