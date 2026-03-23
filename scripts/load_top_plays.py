@@ -470,25 +470,43 @@ def format_event_game_date(commence_time):
         return pd.Timestamp.now(tz="US/Central").strftime("%B %d, %Y")
 
 
+from zoneinfo import ZoneInfo
+from datetime import datetime
+
 def append_to_sheet(sheet, player_name, game_date, line, sportsbook, last_update, predicted_points, model_pick):
     col_a = sheet.col_values(1)
     next_row = len(col_a) + 1
 
+    captured_at = datetime.now(ZoneInfo("America/Chicago")).strftime("%Y-%m-%d %H:%M:%S")
+
     values = [[
-        player_name,
-        str(game_date),
-        float(line),
-        sportsbook,
-        last_update if last_update else "",
-        f"{predicted_points:.2f}",
-        "",
-        "",
-        model_pick,
-        "",
-        "",
+        player_name,                           # A = PLAYER_NAME
+        str(game_date),                        # B = GAME_DATE
+        float(line),                           # C = sportsbook_line
+        sportsbook,                            # D = sportsbook
+        last_update if last_update else "",    # E = last_update
+        f"{predicted_points:.2f}",             # F = predicted_points
+        "",                                    # G = final_points
+        "",                                    # H = line_result
+        model_pick,                            # I = model_pick
+        "",                                    # J = model_result
+        "",                                    # K = result_logged_at
+        "",                                    # L = profit
+        "",                                    # M = edge
+        "PENDING",                             # N = bet_status
+        "",                                    # O = strong_cumulative_profit
+        "",                                    # P = total_bets
+        "",                                    # Q = wins
+        "",                                    # R = losses
+        "",                                    # S = win_rate
+        "",                                    # T = total_units
+        "",                                    # U = ROI
+        "",                                    # V = closing_line
+        "",                                    # W = clv
+        captured_at,                           # X = captured_at
     ]]
 
-    sheet.update(range_name=f"A{next_row}:K{next_row}", values=values)
+    sheet.update(range_name=f"A{next_row}:X{next_row}", values=values)
 
 
 def add_scored_row(scored_map, row_dict):
