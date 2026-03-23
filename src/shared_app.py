@@ -1208,7 +1208,7 @@ def update_all_pending_sheet_results(debug=False):
                 })
             continue
 
-        if parsed_game_date >= today:
+        if parsed_game_date > today:
             rows_skipped_not_final += 1
             if debug:
                 row_debug.append({
@@ -1216,7 +1216,7 @@ def update_all_pending_sheet_results(debug=False):
                     "player_name": player_name,
                     "game_date": game_date,
                     "status": "skipped_not_final",
-                    "details": "Game date is today or later",
+                    "details": "Game date is in the future",
                 })
             continue
 
