@@ -2,14 +2,22 @@ import sys
 import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from src.shared_app import update_all_pending_sheet_results
 
 
 if __name__ == "__main__":
-    updated_count, checked_count, debug_info = update_all_pending_sheet_results(debug=False)
-    print(f"Checked {checked_count} pending rows, updated {updated_count} rows.", flush=True)
+    result = update_all_pending_sheet_results(debug=False)
 
-    if debug_info:
-        print("Debug summary:", flush=True)
-        for key, value in debug_info.items():
-            print(f"  {key}: {value}", flush=True)
+    if isinstance(result, tuple):
+        if len(result) == 3:
+            updated_count, checked_count, debug_info = result
+            print(f"Checked {checked_count} rows, updated {updated_count} rows.", flush=True)
+            print(debug_info, flush=True)
+        elif len(result) == 2:
+            updated_count, checked_count = result
+            print(f"Checked {checked_count} rows, updated {updated_count} rows.", flush=True)
+        else:
+            print(result, flush=True)
+    else:
+        print(result, flush=True)
