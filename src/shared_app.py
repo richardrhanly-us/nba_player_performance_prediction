@@ -41,6 +41,19 @@ CURRENT_SEASON = "2025-26"
 APP_VERSION = "v1.1"
 BOOKMAKER_KEY = "draftkings"
 EDGE_THRESHOLD = 3.0
+IS_STREAMLIT = "STREAMLIT_SERVER_RUNNING" in os.environ
+
+if IS_STREAMLIT:
+    cache_data = st.cache_data
+    cache_resource = st.cache_resource
+else:
+    def cache_data(**kwargs):
+        def wrapper(func):
+            return func
+        return wrapper
+
+    def cache_resource(func):
+        return func
 
 def get_final_points_from_gamelog(player_name, game_date):
     return results_pipeline_get_final_points_from_gamelog(
@@ -186,7 +199,7 @@ def format_event_game_date(commence_time):
 
 
 
-@st.cache_data(ttl=120)
+@cache_data(ttl=120)
 def get_sheet_records_df():
     sheet = get_results_sheet()
     values = sheet.get_all_values()
@@ -199,7 +212,7 @@ def get_sheet_records_df():
     return pd.DataFrame(rows, columns=headers)
 
 
-@st.cache_data(ttl=120)
+@cache_data(ttl=120)
 def get_strong_plays_df():
     try:
         sheet = get_strong_plays_sheet()
@@ -217,7 +230,7 @@ def get_strong_plays_df():
         return pd.DataFrame()
 
 
-@st.cache_data(ttl=120)
+@cache_data(ttl=120)
 def get_strong_plays_summary():
     df = get_strong_plays_df()
     if df.empty or "bet_status" not in df.columns:
@@ -237,7 +250,7 @@ def get_strong_plays_summary():
     return win_rate, total_games
 
 
-@st.cache_data(ttl=120)
+@cache_data(ttl=120)
 def get_strong_plays_health():
     df = get_strong_plays_df()
     if df.empty or "bet_status" not in df.columns:
@@ -270,12 +283,12 @@ def load_model():
     return joblib.load("models/points_regression.pkl")
 
 
-@st.cache_data(ttl=3600)
+@cache_data(ttl=3600)
 def load_model_stats():
     with open("models/points_model_stats.json", "r") as f:
         return json.load(f)
 
-@st.cache_data(ttl=3600)
+@cache_data(ttl=3600)
 def load_active_players():
     active_players = players.get_active_players()
 
@@ -300,7 +313,7 @@ def load_active_players():
     return actual_name_to_id, normalized_to_actual
 
 
-@st.cache_data(ttl=3600)
+@cache_data(ttl=3600)
 def get_player_info_df(player_id):
     try:
         return commonplayerinfo.CommonPlayerInfo(
@@ -334,7 +347,7 @@ def resolve_player_name(raw_name, normalized_to_actual):
 
     return None
 
-@st.cache_data(ttl=900)
+@cache_data(ttl=900)
 def get_player_gamelog_df(player_id, season):
     for attempt in range(2):
         try:
@@ -457,7 +470,7 @@ def build_player_feature_row(df, player_name):
     return pd.DataFrame([feature_data])
 
 
-@st.cache_data(ttl=180)
+@cache_data(ttl=180)
 def get_scoreboard_for_date(game_date=None):
     try:
         if game_date is None:
@@ -676,7 +689,7 @@ def fetch_all_today_player_props(api_key, bookmaker_key):
     return df
 
 
-@st.cache_data(ttl=300)
+@cache_data(ttl=300)
 def get_today_games(api_key):
     try:
         return fetch_upcoming_nba_events(api_key)
@@ -684,7 +697,7 @@ def get_today_games(api_key):
         return []
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@cache_data(ttl=300, show_spinner=False)
 def get_available_sportsbooks():
     return [
         "draftkings",
@@ -697,7 +710,7 @@ def get_available_sportsbooks():
     ]
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@cache_data(ttl=300, show_spinner=False)
 def get_player_points_lines(player_name, bookmaker_key):
     api_key = None
 
@@ -774,7 +787,7 @@ def get_player_points_lines(player_name, bookmaker_key):
     }
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@cache_data(ttl=300, show_spinner=False)
 def get_top_plays_today_df(api_key, debug=False):
     print("[PIPELINE] START get_top_plays_today_df", flush=True)
 
