@@ -7,6 +7,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from google.oauth2.service_account import Credentials
 import gspread
+from shared_app import normalize_name
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import src.shared_app as shared_app
