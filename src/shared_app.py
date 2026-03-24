@@ -363,7 +363,7 @@ def get_player_gamelog_df(player_id, season):
     return pd.DataFrame()
 
 
-def build_player_feature_row(df, player_name):
+ddef build_player_feature_row(df, player_name, sportsbook_line=None):
     df = df.copy()
     df["PLAYER_NAME"] = player_name
     df["GAME_DATE"] = pd.to_datetime(df["GAME_DATE"])
@@ -411,9 +411,21 @@ def build_player_feature_row(df, player_name):
     df["season_minutes_avg"] = df.groupby("PLAYER_NAME")["MIN"].transform(lambda x: x.shift(1).expanding().mean())
     df["minutes_volatility"] = df.groupby("PLAYER_NAME")["MIN"].transform(lambda x: x.shift(1).rolling(5).std())
     df["points_volatility"] = df.groupby("PLAYER_NAME")["PTS"].transform(lambda x: x.shift(1).rolling(5).std())
+    df["opponent"] = df["MATCHUP"].astype(str).str.split().str[-1]
 
-    if "FG3A" in df.columns:
-        df["last5_3pa"] = df.groupby("PLAYER_NAME")["FG3A"].transform(lambda x: x.shift(1).rolling(5).mean())
+    df["opp_pts_allowed"] = df.groupby("opponent")["PTS"].transform(
+        lambda x: x.shift(1).rolling(10).mean()
+    )
+    
+    df["opp_pts_allowed_last5"] = df.groupby("opponent")["PTS"].transform(
+        lambda x: x.shift(1).rolling(5).mean()
+    )
+    
+    df["is_star"] = (df["player_avg_pts"] >= 20).astype(int)
+    
+    df["closing_line"] = sportsbook_line
+        if "FG3A" in df.columns:
+            df["last5_3pa"] = df.groupby("PLAYER_NAME")["FG3A"].transform(lambda x: x.shift(1).rolling(5).mean())
 
     required_features = [
         "player_avg_pts",
@@ -432,7 +444,11 @@ def build_player_feature_row(df, player_name):
         "last5_gmsc",
         "last5_usage_proxy",
         "minutes_volatility",
-        "points_volatility"
+        "points_volatility",
+        "opp_pts_allowed",
+        "opp_pts_allowed_last5",
+        "is_star",
+        "closing_line"
     ]
 
     if "last5_3pa" in df.columns:
@@ -461,7 +477,11 @@ def build_player_feature_row(df, player_name):
         "last5_gmsc": latest["last5_gmsc"],
         "last5_usage_proxy": latest["last5_usage_proxy"],
         "minutes_volatility": latest["minutes_volatility"],
-        "points_volatility": latest["points_volatility"]
+        "points_volatility": latest["points_volatility"],
+        "opp_pts_allowed": latest["opp_pts_allowed"],
+        "opp_pts_allowed_last5": latest["opp_pts_allowed_last5"],
+        "is_star": latest["is_star"],
+        "closing_line": latest["closing_line"]
     }
 
     if "last5_3pa" in df_features.columns and pd.notna(latest.get("last5_3pa", None)):
