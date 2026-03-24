@@ -27,7 +27,7 @@ def get_final_points_from_gamelog(player_name, game_date, load_active_players, n
     player_id = actual_name_to_id.get(actual_name)
     if not player_id:
         return None
-    print(f"[PIPELINE] Player mapping -> raw: {raw_name} | actual: {actual_name}", flush=True)
+    print(f"[PIPELINE] Player mapping -> input: {player_name} | actual: {actual_name}", flush=True)
     
     df = get_player_gamelog_df(player_id, CURRENT_SEASON)
     if df.empty or "GAME_DATE" not in df.columns:
