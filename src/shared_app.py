@@ -881,7 +881,7 @@ def get_top_plays_today_df(api_key, debug=False):
         if df.empty:
             continue
 
-        X = build_player_feature_row(df, actual_name)
+        X = build_player_feature_row(df, actual_name, row["line"])
         if X is None or X.empty:
             continue
 
