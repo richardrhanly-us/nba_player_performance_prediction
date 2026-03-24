@@ -880,9 +880,13 @@ def get_top_plays_today_df(api_key, debug=False):
             )
             continue
 
+        sportsbook_name = row.get("bookmaker", "")
+        sportsbook_key = row.get("bookmaker_key", "").lower()
+        
         rows.append({
             "PLAYER_NAME": actual_name,
-            "sportsbook": row["bookmaker"],
+            "sportsbook": sportsbook_key,          # internal use (normalized)
+            "sportsbook_name": sportsbook_name,    # display name
             "sportsbook_line": line,
             "predicted_points": round(predicted_points, 2),
             "edge": round(edge, 2),
