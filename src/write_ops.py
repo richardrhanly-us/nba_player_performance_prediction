@@ -85,7 +85,7 @@ def append_manual_play_to_sheet1(
         else:
             sportsbook = sportsbook_lookup
 
-    sportsbook = format_sportsbook_name(sportsbook)
+    sportsbook = str(sportsbook).strip().lower()
 
     if not last_update and line_data:
         last_update = line_data.get("last_update", "") or ""
@@ -136,7 +136,7 @@ def append_play_to_strong_plays(
 ):
     actual_name = str(player_name).strip()
     game_date = str(game_date).strip()
-    sportsbook = format_sportsbook_name(sportsbook)
+    sportsbook = str(sportsbook).strip().lower()
     sportsbook_line = float(sportsbook_line)
     predicted_points = float(predicted_points)
     model_pick = str(model_pick).strip().upper()
