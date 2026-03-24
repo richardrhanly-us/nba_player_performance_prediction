@@ -278,9 +278,18 @@ def get_strong_plays_health():
     }
 
 
-@st.cache_resource
+import os
+
+@cache_data(ttl=900)
 def load_model():
-    return joblib.load("models/points_regression.pkl")
+    model_path = "models/points_regression.pkl"
+    print("MODEL PATH:", model_path, flush=True)
+    print("EXISTS:", os.path.exists(model_path), flush=True)
+    if os.path.exists(model_path):
+        print("SIZE:", os.path.getsize(model_path), flush=True)
+        with open(model_path, "rb") as f:
+            print("FIRST 40 BYTES:", f.read(40), flush=True)
+    return joblib.load(model_path)
 
 
 @cache_data(ttl=3600)
