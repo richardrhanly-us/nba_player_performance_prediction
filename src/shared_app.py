@@ -387,6 +387,9 @@ def build_player_feature_row(df, player_name, sportsbook_line=None):
 
     df["MIN"] = pd.to_timedelta("00:" + df["MIN"].astype(str), errors="coerce").dt.total_seconds() / 60.0
 
+    if "FG3A" in df.columns:
+        df["FG3A"] = pd.to_numeric(df["FG3A"], errors="coerce")
+
     df["gmsc"] = (
         df["PTS"]
         + 0.4 * df["FGM"]
