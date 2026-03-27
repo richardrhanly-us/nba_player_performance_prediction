@@ -1151,7 +1151,7 @@ with operations_tab:
                         f"{item['player_name']} | {item['sportsbook']} {item['sportsbook_line']}"
                     )
 
-                    result = shared_app.append_manual_play_to_sheet1(
+                    result = append_manual_play_to_sheet1(
                         player_name=item["player_name"],
                         sportsbook_key=item["sportsbook"],
                         sportsbook_line=item["sportsbook_line"],
