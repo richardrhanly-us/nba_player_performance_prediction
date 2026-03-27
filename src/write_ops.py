@@ -77,11 +77,17 @@ def append_manual_play_to_sheet1(
                 sportsbook_line = float(sportsbook_line)
         
             model_pick = "OVER" if predicted_points > sportsbook_line else "UNDER"
-
-        model = load_model()
-        model_feature_names = list(getattr(model, "feature_names_in_", []))
-        if model_feature_names:
-            X = X.reindex(columns=model_feature_names, fill_value=0)
+            
+        if X is not None and not X.empty:
+            model = load_model()
+        
+            model_feature_names = list(getattr(model, "feature_names_in_", []))
+            if model_feature_names:
+                X = X.reindex(columns=model_feature_names, fill_value=0)
+        
+            predicted_points = float(model.predict(X)[0])
+        else:
+            predicted_points = float(sportsbook_line)
 
         predicted_points = float(model.predict(X)[0])
 
