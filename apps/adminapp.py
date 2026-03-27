@@ -1152,8 +1152,6 @@ with operations_tab:
                     st.write(result)
                     loaded_count += 1
 
-                    loaded_count += 1
-
                 except Exception as e:
                     error_msg = f"{item['player_name']} | {item['sportsbook']} {item['sportsbook_line']} | {e}"
                     failed_items.append(error_msg)
