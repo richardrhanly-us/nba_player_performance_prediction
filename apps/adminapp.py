@@ -504,18 +504,8 @@ overview_tab, operations_tab, logs_tab, usage_tab, review_tab = st.tabs([
 
 
 with overview_tab:
-    try:
-        top_games_win_rate, top_games_total = get_strong_plays_summary()
-    except Exception as e:
-        top_games_win_rate, top_games_total = None, 0
-        st.warning(f"Could not load Strong Plays summary: {e}")
-
-    try:
-        health = get_strong_plays_health()
-    except Exception as e:
-        health = None
-        st.warning(f"Could not load Strong Plays health data: {e}")
-
+    top_games_win_rate, top_games_total = None, 0
+    health = None
     usage_logs_df = get_usage_logs_df()
     usage_summary = build_usage_summary(usage_logs_df)
 
