@@ -465,7 +465,26 @@ def build_player_feature_row(df, player_name, sportsbook_line=None):
     if "last5_3pa" in df.columns:
         required_features.append("last5_3pa")
 
-    df_features = df.dropna(subset=required_features).reset_index(drop=True)
+    
+    df_features = df.copy()
+
+    for col in required_features:
+        if col not in df_features.columns:
+            df_features[col] = pd.NA
+
+    df_features[required_features] = df_features[required_features].ffill()
+
+    core_required = [
+        "player_avg_pts",
+        "player_avg_pts_sq",
+        "season_minutes_avg",
+        "home_game",
+        "days_rest",
+        "is_back_to_back",
+        "closing_line",
+    ]
+
+    df_features = df_features.dropna(subset=core_required).reset_index(drop=True)
     if df_features.empty:
         return None
 
