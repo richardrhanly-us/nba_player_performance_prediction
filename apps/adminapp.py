@@ -1158,6 +1158,9 @@ with operations_tab:
                         sportsbook_key=item["sportsbook"],
                         sportsbook_line=item["sportsbook_line"],
                     )
+                    
+                    st.write(result)
+                    loaded_count += 1
 
                     loaded_count += 1
 
