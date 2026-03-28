@@ -1148,7 +1148,7 @@ with operations_tab:
                         sportsbook_line=item["sportsbook_line"],
                     )
                     
-                    st.write(result)
+                
                     loaded_count += 1
 
                 except Exception as e:
