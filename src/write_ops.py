@@ -52,20 +52,27 @@ def append_manual_play_to_sheet1(
 
     if predicted_points is None or model_pick is None:
         df = get_player_gamelog_df(player_id, CURRENT_SEASON)
+    
         if df is None or df.empty:
-            predicted_points = sportsbook_line
-            model_pick = "OVER"
-        else:
-            X = build_player_feature_row(df, actual_name, sportsbook_line)
-
-            if X is None or X.empty:
-                predicted_points = sportsbook_line
-                model_pick = "OVER"
-            else:
-                model = load_model()
-                model_feature_names = list(getattr(model, "feature_names_in_", []))
-                if model_feature_names:
-                    X = X.reindex(columns=model_feature_names, fill_value=0)
+            raise ValueError(f"No gamelog data available for {actual_name}")
+    
+        X = build_player_feature_row(df, actual_name, sportsbook_line)
+    
+        if X is None or X.empty:
+            raise ValueError(f"Could not build feature row for {actual_name}")
+    
+        model = load_model()
+        model_feature_names = list(getattr(model, "feature_names_in_", []))
+    
+        if model_feature_names:
+            missing_features = [col for col in model_feature_names if col not in X.columns]
+            if missing_features:
+                raise ValueError(f"Missing model features for {actual_name}: {missing_features}")
+    
+            X = X.reindex(columns=model_feature_names)
+    
+        predicted_points = float(model.predict(X)[0])
+        model_pick = "OVER" if predicted_points > sportsbook_line else "UNDER"
 
                 predicted_points = float(model.predict(X)[0])
                 model_pick = "OVER" if predicted_points > sportsbook_line else "UNDER"
