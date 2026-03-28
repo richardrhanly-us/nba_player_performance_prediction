@@ -371,7 +371,6 @@ def get_player_gamelog_df(player_id, season):
             time.sleep(2)
     return pd.DataFrame()
 
-
 def build_player_feature_row(df, player_name, sportsbook_line=None):
     def _parse_minutes_value(val):
         if pd.isna(val):
@@ -555,6 +554,7 @@ def build_player_feature_row(df, player_name, sportsbook_line=None):
         feature_data["last5_3pa"] = latest["last5_3pa"]
 
     return pd.DataFrame([feature_data])
+
 
 def _parse_minutes_value(val):
     if pd.isna(val):
