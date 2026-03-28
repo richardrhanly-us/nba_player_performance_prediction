@@ -13,7 +13,6 @@ from src.shared_app import (
     build_player_feature_row,
     load_model,
     get_player_points_lines,
-    format_sportsbook_name,
     format_event_game_date,
     safe_float,
     CURRENT_SEASON,
@@ -97,7 +96,7 @@ def append_manual_play_to_sheet1(
     edge = round(predicted_points - sportsbook_line, 2)
 
     sheet = get_results_sheet()
-    
+
     row_values = [
         actual_name,
         str(game_date),
@@ -111,7 +110,7 @@ def append_manual_play_to_sheet1(
         "",
         "",
     ]
-    
+
     sheet.append_row(row_values, value_input_option="USER_ENTERED")
     clear_app_caches()
 
@@ -122,7 +121,6 @@ def append_manual_play_to_sheet1(
         "predicted_points": round(predicted_points, 2),
         "edge": edge,
         "model_pick": model_pick,
-        "sheet_row": next_row,
     }
 
 
@@ -151,7 +149,7 @@ def append_play_to_strong_plays(
     captured_at = pd.Timestamp.now(tz="America/Chicago").strftime("%Y-%m-%d %H:%M:%S")
 
     sheet = get_strong_plays_sheet()
-    
+
     row_values = [
         actual_name,
         game_date,
@@ -178,7 +176,7 @@ def append_play_to_strong_plays(
         "",
         captured_at,
     ]
-    
+
     sheet.append_row(row_values, value_input_option="USER_ENTERED")
     clear_app_caches()
 
@@ -190,5 +188,4 @@ def append_play_to_strong_plays(
         "predicted_points": round(predicted_points, 2),
         "edge": edge,
         "model_pick": model_pick,
-        "sheet_row": next_row,
     }
