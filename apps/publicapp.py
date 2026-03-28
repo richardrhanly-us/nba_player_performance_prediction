@@ -1289,8 +1289,8 @@ line_is_live = live_line is not None
 
 if live_line is not None:
     st.caption(f"Loaded {selected_book} line: {float(live_line):.1f}")
-else:
-    st.caption("Live sportsbook line not available — using manual input.")
+elif sportsbook_line != 25.5:  # or your default
+    st.caption("Using manual input line")
 
 if selected_player:
     with st.spinner("Building projection..."):
