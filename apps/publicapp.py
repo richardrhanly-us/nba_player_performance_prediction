@@ -1289,10 +1289,16 @@ sportsbook_line = st.number_input(
     key=f"sportsbook_line_{selected_player}_{selected_book}",
 )
 
-line_is_live = live_line is not None
+manual_override = (
+    line_is_live and
+    float(sportsbook_line) != float(live_line)
+)
 
-if line_status == "live":
+
+if line_status == "live" and not manual_override:
     st.caption(f"Live line • {selected_book}: {float(live_line):.1f}")
+elif manual_override:
+    st.caption(f"Manual override • using {float(sportsbook_line):.1f}")
 else:
     st.caption(f"Manual input • using {float(sportsbook_line):.1f}")
 
