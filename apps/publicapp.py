@@ -1276,6 +1276,10 @@ if selected_player and selected_book:
 
 manual_default = float(live_line) if live_line is not None else 25.5
 
+
+line_is_live = live_line is not None
+line_status = "live" if line_is_live else "manual_input"
+
 sportsbook_line = st.number_input(
     "Sportsbook points line",
     min_value=0.0,
@@ -1287,10 +1291,10 @@ sportsbook_line = st.number_input(
 
 line_is_live = live_line is not None
 
-if live_line is not None:
-    st.caption(f"Loaded {selected_book} line: {float(live_line):.1f}")
-elif sportsbook_line != 25.5:  # or your default
-    st.caption("Using manual input line")
+if line_status == "live":
+    st.caption(f"Live line • {selected_book}: {float(live_line):.1f}")
+else:
+    st.caption(f"Manual input • using {float(sportsbook_line):.1f}")
 
 if selected_player:
     with st.spinner("Building projection..."):
