@@ -100,9 +100,8 @@ def append_manual_play_to_sheet1(
     edge = round(predicted_points - sportsbook_line, 2)
 
     sheet = get_results_sheet()
-    next_row = len(sheet.col_values(1)) + 1
-
-    row_values = [[
+    
+    row_values = [
         actual_name,
         str(game_date),
         sportsbook_line,
@@ -114,9 +113,9 @@ def append_manual_play_to_sheet1(
         model_pick,
         "",
         "",
-    ]]
-
-    sheet.update(range_name=f"A{next_row}:K{next_row}", values=row_values)
+    ]
+    
+    sheet.append_row(row_values, value_input_option="USER_ENTERED")
     clear_app_caches()
 
     return {
@@ -155,10 +154,8 @@ def append_play_to_strong_plays(
     captured_at = pd.Timestamp.now(tz="America/Chicago").strftime("%Y-%m-%d %H:%M:%S")
 
     sheet = get_strong_plays_sheet()
-    values = sheet.get_all_values()
-    next_row = len(values) + 1 if values else 2
-
-    row_values = [[
+    
+    row_values = [
         actual_name,
         game_date,
         sportsbook_line,
@@ -183,9 +180,9 @@ def append_play_to_strong_plays(
         "",
         "",
         captured_at,
-    ]]
-
-    sheet.update(range_name=f"A{next_row}:X{next_row}", values=row_values)
+    ]
+    
+    sheet.append_row(row_values, value_input_option="USER_ENTERED")
     clear_app_caches()
 
     return {
