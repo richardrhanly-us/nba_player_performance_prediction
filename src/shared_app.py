@@ -250,14 +250,28 @@ def get_strong_plays_summary():
     return win_rate, total_games
 
 
+
 @cache_data(ttl=120)
 def get_strong_plays_health():
     df = get_strong_plays_df()
-    if df.empty or "bet_status" not in df.columns:
+    if df.empty:
         return None
 
     df = df.copy()
+
+    for col in ["PLAYER_NAME", "sportsbook_line", "bet_status", "result_logged_at"]:
+        if col not in df.columns:
+            df[col] = ""
+
+    df["PLAYER_NAME"] = df["PLAYER_NAME"].astype(str).str.strip()
+    df["sportsbook_line"] = pd.to_numeric(df["sportsbook_line"], errors="coerce")
     df["bet_status"] = df["bet_status"].astype(str).str.strip().str.upper()
+
+    # only count real play rows
+    df = df[
+        (df["PLAYER_NAME"] != "") &
+        (df["sportsbook_line"].notna())
+    ].copy()
 
     total = len(df)
     graded = len(df[df["bet_status"].isin(["WIN", "LOSS"])])
@@ -276,7 +290,6 @@ def get_strong_plays_health():
         "pending": pending,
         "last_update": last_update
     }
-
 
 
 
