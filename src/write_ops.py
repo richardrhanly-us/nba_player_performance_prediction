@@ -76,7 +76,12 @@ def append_manual_play_to_sheet1(
     predicted_points = float(predicted_points)
     model_pick = str(model_pick).strip().upper()
 
-    if not game_date:
+    if game_date:
+        try:
+            game_date = pd.to_datetime(game_date).strftime("%B %d, %Y")
+        except Exception:
+            game_date = str(game_date).strip()
+    else:
         if line_data and line_data.get("commence_time"):
             game_date = format_event_game_date(line_data.get("commence_time"))
         else:
@@ -99,7 +104,7 @@ def append_manual_play_to_sheet1(
 
     row_values = [
         actual_name,
-        str(game_date),
+        game_date,
         sportsbook_line,
         sportsbook,
         last_update,
