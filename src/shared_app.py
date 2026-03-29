@@ -356,20 +356,17 @@ def resolve_player_name(raw_name, normalized_to_actual):
 
     return None
 
-@cache_data(ttl=900)
+@cache_data(ttl=3600, show_spinner=False)
 def get_player_gamelog_df(player_id, season):
-    for attempt in range(2):
-        try:
-            return playergamelog.PlayerGameLog(
-                player_id=player_id,
-                season=season,
-                timeout=12
-            ).get_data_frames()[0]
-        except Exception:
-            if attempt == 1:
-                return pd.DataFrame()
-            time.sleep(2)
-    return pd.DataFrame()
+    try:
+        return playergamelog.PlayerGameLog(
+            player_id=player_id,
+            season=season,
+            timeout=6
+        ).get_data_frames()[0]
+    except Exception as e:
+        print(f"[PIPELINE] Gamelog failed for player_id={player_id}: {e}", flush=True)
+        return pd.DataFrame()
 
 
 def build_player_feature_row(df, player_name, sportsbook_line=None):
@@ -883,6 +880,14 @@ def get_top_plays_today_df(api_key, debug=False):
     gamelog_cache = {}
     total_rows = len(props_df)
 
+    skipped_unresolved_name = 0
+    skipped_missing_player_id = 0
+    skipped_empty_gamelog = 0
+    skipped_empty_features = 0
+    skipped_missing_line = 0
+    skipped_below_edge = 0
+    
+    
     status_box = None
     progress_bar = None
 
@@ -910,14 +915,13 @@ def get_top_plays_today_df(api_key, debug=False):
         
         actual_name = resolve_player_name(raw_name, normalized_to_actual)
         if not actual_name:
+            skipped_unresolved_name += 1
             continue
-        
-        
+
         player_id = actual_name_to_id.get(actual_name)
         if not player_id:
+            skipped_missing_player_id += 1
             continue
-        
-        
 
         if player_id in gamelog_cache:
             df = gamelog_cache[player_id]
@@ -927,22 +931,27 @@ def get_top_plays_today_df(api_key, debug=False):
                 gamelog_cache[player_id] = df
 
         if df.empty:
+            skipped_empty_gamelog += 1
             continue
 
         X = build_player_feature_row(df, actual_name, row["line"])
         if X is None or X.empty:
+            skipped_empty_features += 1
             continue
 
         if model_feature_names:
             X = X.reindex(columns=model_feature_names, fill_value=0)
 
         predicted_points = float(model.predict(X)[0])
+
         line = safe_float(row["line"])
         if line is None:
+            skipped_missing_line += 1
             continue
 
         edge = predicted_points - line
         if abs(edge) < EDGE_THRESHOLD:
+            skipped_below_edge += 1
             print(
                 f"[PIPELINE] Skip: edge below threshold for {actual_name} "
                 f"(edge={round(edge, 2)}, threshold={EDGE_THRESHOLD})",
