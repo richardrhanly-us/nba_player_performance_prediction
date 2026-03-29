@@ -13,6 +13,7 @@ from src.shared_app import (
     get_sheet_records_df,
     get_historical_lines_sheet,
     normalize_name,
+    format_event_game_date,
     BOOKMAKER_KEY,
 )
 
@@ -179,9 +180,12 @@ def append_new_sheet1_rows(scan_df, sportsbook_key):
 
         log(f"[PREGAME] Sheet1 append {idx}/{total_items} -> {player_name} | {sportsbook} | {sportsbook_line}")
 
+        game_date = format_event_game_date(row.get("commence_time", ""))
+
         try:
             append_manual_play_to_sheet1(
                 player_name=player_name,
+                game_date=game_date,
                 sportsbook_key=sportsbook,
                 sportsbook_line=sportsbook_line,
                 last_update=last_update,
