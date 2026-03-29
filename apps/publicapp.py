@@ -1134,11 +1134,14 @@ try:
 
     top_plays_df = top_plays_df[top_plays_df["sportsbook_line"].notna()].copy()
     top_plays_df = top_plays_df[top_plays_df["sportsbook_line"] > 0].copy()
+
+    except Exception as e:
+        st.info(f"Top plays are temporarily unavailable: {e}")
+    
     top_plays_df = top_plays_df[top_plays_df["sportsbook_line"] != 25.5].copy()
 
 
-except Exception as e:
-    st.info(f"Top plays are temporarily unavailable: {e}")
+
 
     if "sportsbook_line" in top_plays_df.columns:
         top_plays_df["sportsbook_line"] = pd.to_numeric(
