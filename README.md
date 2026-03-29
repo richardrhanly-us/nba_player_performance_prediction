@@ -3,7 +3,7 @@
 #     NBA Player Performance Prediction
 
 <p align="center">
-  <img src="images/App2Capture.JPG" width="1000"/>
+  <img src="images/App2Capture.PNG" width="1000"/>
 </p>
 
 <p align="center">
