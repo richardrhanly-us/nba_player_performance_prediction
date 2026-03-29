@@ -371,15 +371,18 @@ def resolve_player_name(raw_name, normalized_to_actual):
 
 @cache_data(ttl=3600, show_spinner=False)
 def get_player_gamelog_df(player_id, season):
-    try:
-        return playergamelog.PlayerGameLog(
-            player_id=player_id,
-            season=season,
-            timeout=12
-        ).get_data_frames()[0]
-    except Exception as e:
-        print(f"[PIPELINE] Gamelog failed for player_id={player_id}: {e}", flush=True)
-        return pd.DataFrame()
+    for attempt in range(2):
+        try:
+            return playergamelog.PlayerGameLog(
+                player_id=player_id,
+                season=season,
+                timeout=12
+            ).get_data_frames()[0]
+        except Exception as e:
+            if attempt == 1:
+                print(f"[PIPELINE] Gamelog failed for player_id={player_id}: {e}", flush=True)
+                return pd.DataFrame()
+            time.sleep(1.0)
 
 
 def build_player_feature_row(df, player_name, sportsbook_line=None):
@@ -995,6 +998,8 @@ def get_top_plays_today_df(api_key, debug=False):
             "commence_time": row.get("commence_time", "")
         })
 
+        time.sleep(0.5)
+    
     if debug and status_box is not None:
         status_box.markdown(
             """
