@@ -1042,7 +1042,7 @@ def build_prediction(player_name, sportsbook_line):
 st.markdown(
     f"""
 <div class="hero">
-    <div class="hero-title">Edge Analytics - NBA</div>
+    <div class="hero-title">Playbook Analytics - NBA</div>
     <p class="hero-subtitle">NBA Player Prop Model</p>
     <p class="hero-subtitle">Model driven insights into player point total projections</p>
     <div class="hero-pills">
