@@ -1103,45 +1103,12 @@ if health:
     )
 
 try:
-    top_plays_df = get_top_plays_live_df()
+    top_plays_df = get_top_plays_live_df().copy()
 
-    validated_rows = []
-
-    for _, row in top_plays_df.iterrows():
-        player_name = row.get("PLAYER_NAME")
-        sportsbook = str(row.get("sportsbook", "draftkings")).lower()
-
-        if not player_name:
-            continue
-
-    try:
-        # Load prebuilt data ONLY (fast)
-        top_plays_df = get_top_plays_live_df().copy()
-    
-        # Remove finished games if column exists
-        if "game_status" in top_plays_df.columns:
-            top_plays_df = top_plays_df[
-                ~top_plays_df["game_status"]
-                .astype(str)
-                .str.upper()
-                .str.contains("FINAL", na=False)
-            ].copy()
-
-    top_plays_df["sportsbook_line"] = pd.to_numeric(
-        top_plays_df.get("sportsbook_line"),
-        errors="coerce",
-    )
-
-    top_plays_df = top_plays_df[top_plays_df["sportsbook_line"].notna()].copy()
-    top_plays_df = top_plays_df[top_plays_df["sportsbook_line"] > 0].copy()
-
-    except Exception as e:
-        st.info(f"Top plays are temporarily unavailable: {e}")
-    
-    top_plays_df = top_plays_df[top_plays_df["sportsbook_line"] != 25.5].copy()
-
-
-
+    if "game_status" in top_plays_df.columns:
+        top_plays_df = top_plays_df[
+            ~top_plays_df["game_status"].astype(str).str.upper().str.contains("FINAL", na=False)
+        ].copy()
 
     if "sportsbook_line" in top_plays_df.columns:
         top_plays_df["sportsbook_line"] = pd.to_numeric(
@@ -1149,13 +1116,9 @@ try:
             errors="coerce",
         )
 
-    if "game_status" in top_plays_df.columns:
-        top_plays_df = top_plays_df[
-            ~top_plays_df["game_status"].astype(str).str.upper().str.contains("FINAL", na=False)
-        ].copy()
-
     top_plays_df = top_plays_df[top_plays_df["sportsbook_line"].notna()].copy()
     top_plays_df = top_plays_df[top_plays_df["sportsbook_line"] > 0].copy()
+    top_plays_df = top_plays_df[top_plays_df["sportsbook_line"] != 25.5].copy()
 
     if top_plays_df.empty:
         st.info("No top plays available right now.")
