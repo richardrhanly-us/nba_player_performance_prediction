@@ -53,30 +53,8 @@ def run_pregame_pipeline():
         except Exception as e:
             print(f"[PREGAME] Sheet1 append failed -> {player_name} | {line} | {e}", flush=True)
 
-        # THROTTLE 
-        time.sleep(0.6)
-
-    # =========================
-    # STEP 3 — WRITE TOP PLAYS LIVE
-    # =========================
-    print("[PREGAME] Writing Top Plays Live...", flush=True)
-
-    client = get_gsheet_client()
-    sheet = client.open_by_key(SHEET_KEY)
-
-    try:
-        top_sheet = sheet.worksheet("Top Plays Live")
-    except Exception:
-        top_sheet = sheet.add_worksheet(title="Top Plays Live", rows=1000, cols=20)
-
-    top_sheet.clear()
-
-    if top_df.empty:
-        top_sheet.update("A1", [["No data available"]])
-    else:
-        top_sheet.update([top_df.columns.values.tolist()] + top_df.values.tolist())
-
-    print("[PREGAME] Top Plays Live updated.", flush=True)
+        # THROTTLE
+        time.sleep(1.25)
 
     print("[PREGAME] Pipeline complete.", flush=True)
 
