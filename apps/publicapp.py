@@ -1048,7 +1048,7 @@ st.markdown(
     <div class="hero-pills">
         <div class="hero-pill">Projected points</div>
         <div class="hero-pill">Top edges</div>
-        <div class="hero-pill">Version: {APP_VERSION}</div>
+        <div class="hero-pill">Live Stats</div>
     </div>
 </div>
 """,
