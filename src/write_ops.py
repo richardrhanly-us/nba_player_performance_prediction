@@ -104,7 +104,7 @@ def append_manual_play_to_sheet1(
 
     row_values = [
         actual_name,
-        game_date,
+        f"'{game_date}",
         sportsbook_line,
         sportsbook,
         last_update,
